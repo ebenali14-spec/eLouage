@@ -22,40 +22,60 @@ class _PlanningLouagistePageState extends State<PlanningLouagistePage> {
     'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'
   ];
 
-  late final List<DateTime> _jours;
+  late DateTime _lundi; // lundi de la semaine affichée
   final Map<String, int> _choix = {};      // date -> ligneId
-  final Map<String, int> _trajetIds = {};  // date -> trajetId (une fois le planning créé)
+  final Map<String, int> _trajetIds = {};  // date -> trajetId
   bool _planningExiste = false;
   bool _chargement = true;
+  int _requete = 0; // ignore les réponses en retard
+
+  DateTime get _aujourdhui {
+    final n = DateTime.now();
+    return DateTime(n.year, n.month, n.day);
+  }
+
+  List<DateTime> get _jours => List.generate(
+      7, (i) => DateTime(_lundi.year, _lundi.month, _lundi.day + i));
 
   String _fmt(DateTime d) =>
       '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+
+  String _affiche(DateTime d) =>
+      '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';
 
   String _texteErreur(Object e) => e.toString().replaceFirst('Exception: ', '');
 
   @override
   void initState() {
     super.initState();
-    // lundi de la semaine prochaine
     final now = DateTime.now();
-    final lundi = DateTime(now.year, now.month, now.day)
-        .add(Duration(days: 8 - now.weekday));
-    _jours = List.generate(7, (i) => lundi.add(Duration(days: i)));
-    _charger();
+    // départ : lundi de la semaine prochaine
+    _lundi = DateTime(now.year, now.month, now.day + 8 - now.weekday);
+    _chargerSemaine();
   }
 
-  Future<void> _charger() async {
+  Future<void> _chargerSemaine() async {
+    final id = ++_requete;
+    setState(() {
+      _chargement = true;
+      _choix.clear();
+      _trajetIds.clear();
+      _planningExiste = false;
+    });
     try {
-      final lignes = await _service.getLignesAutorisees(_louagisteId);
-      _lignes = {
-        for (final l in lignes) l['id'] as int: l['villeDestination'] as String
-      };
-      final planning = await _service.getPlanning(_louagisteId, _fmt(_jours.first));
+      if (_lignes.isEmpty) {
+        final lignes = await _service.getLignesAutorisees(_louagisteId);
+        _lignes = {
+          for (final l in lignes) l['id'] as int: l['villeDestination'] as String
+        };
+      }
+      final planning = await _service.getPlanning(_louagisteId, _fmt(_lundi));
+      if (id != _requete) return;
       if (planning != null) _remplirDepuis(planning);
     } catch (e) {
-      _message(_texteErreur(e));
+      if (id == _requete) _message(_texteErreur(e));
     }
-    if (mounted) setState(() => _chargement = false);
+    if (mounted && id == _requete) setState(() => _chargement = false);
   }
 
   void _remplirDepuis(Map<String, dynamic> planning) {
@@ -66,10 +86,28 @@ class _PlanningLouagistePageState extends State<PlanningLouagistePage> {
     }
   }
 
+  void _semaine(int delta) {
+    _lundi = DateTime(_lundi.year, _lundi.month, _lundi.day + 7 * delta);
+    _chargerSemaine();
+  }
+
+  Future<void> _choisirDate() async {
+    final date = await showDatePicker(
+      context: context,
+      initialDate: _lundi,
+      firstDate: DateTime(2024),
+      lastDate: DateTime(2100),
+    );
+    if (date == null) return;
+    // on ramène la date choisie au lundi de sa semaine
+    _lundi = DateTime(date.year, date.month, date.day - (date.weekday - 1));
+    _chargerSemaine();
+  }
+
   Future<void> _valider() async {
     try {
-      final planning = await _service.remplirPlan(
-          _louagisteId, _fmt(_jours.first), _choix);
+      final planning =
+      await _service.remplirPlan(_louagisteId, _fmt(_lundi), _choix);
       setState(() => _remplirDepuis(planning));
       _message('Planning confirmé');
     } catch (e) {
@@ -82,8 +120,13 @@ class _PlanningLouagistePageState extends State<PlanningLouagistePage> {
       setState(() => _choix[date] = ligneId);
       return;
     }
+    final trajetId = _trajetIds[date];
+    if (trajetId == null) {
+      _message('Aucun trajet ce jour-là');
+      return;
+    }
     try {
-      await _service.changerLigne(_trajetIds[date]!, _louagisteId, ligneId);
+      await _service.changerLigne(trajetId, _louagisteId, ligneId);
       setState(() => _choix[date] = ligneId);
       _message('Ligne modifiée');
     } catch (e) {
@@ -98,39 +141,65 @@ class _PlanningLouagistePageState extends State<PlanningLouagistePage> {
 
   @override
   Widget build(BuildContext context) {
-    if (_chargement) return const Center(child: CircularProgressIndicator());
+    final jours = _jours;
+    final semainePassee = jours.last.isBefore(_aujourdhui);
 
     return Padding(
       padding: const EdgeInsets.all(24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Ma semaine',
-              style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold,
-                  color: AppColors.textPrimary)),
+          Row(
+            children: [
+              IconButton(
+                icon: const Icon(Icons.chevron_left),
+                onPressed: () => _semaine(-1),
+              ),
+              Expanded(
+                child: InkWell(
+                  onTap: _choisirDate,
+                  child: Text(
+                    'Semaine du ${_affiche(_lundi)}',
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold,
+                        color: AppColors.textPrimary),
+                  ),
+                ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.chevron_right),
+                onPressed: () => _semaine(1),
+              ),
+            ],
+          ),
           const SizedBox(height: 16),
           Expanded(
-            child: ListView.builder(
-              itemCount: _jours.length,
+            child: _chargement
+                ? const Center(child: CircularProgressIndicator())
+                : ListView.builder(
+              itemCount: jours.length,
               itemBuilder: (context, i) {
-                final date = _fmt(_jours[i]);
+                final date = _fmt(jours[i]);
+                final passe = jours[i].isBefore(_aujourdhui);
                 return ListTile(
                   title: Text(_nomsJours[i]),
                   subtitle: Text(date),
                   trailing: DropdownButton<int>(
                     value: _choix[date],
-                    hint: const Text('Choisir'),
+                    hint: Text(passe ? '—' : 'Choisir'),
                     items: _lignes.entries
                         .map((e) => DropdownMenuItem(
                         value: e.key, child: Text(e.value)))
                         .toList(),
-                    onChanged: (id) => _changer(date, id!),
+                    onChanged: passe ? null : (id) => _changer(date, id!),
                   ),
                 );
               },
             ),
           ),
-          if (!_planningExiste)
+          if (!_chargement && !_planningExiste && semainePassee)
+            const Center(child: Text('Aucun planning cette semaine')),
+          if (!_chargement && !_planningExiste && !semainePassee)
             SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
