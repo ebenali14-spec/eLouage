@@ -16,9 +16,9 @@ class _LouagisteShellState extends State<LouagisteShell> {
   int _index = 0;
 
   final List<Widget> _pages = const [
-   // PlanningLouagistePage(),
+    PlanningLouagistePage(),
     StationLouagistePage(),
-    //EmbarquementLouagistePage(),
+    EmbarquementLouagistePage(),
   ];
   final List<String> _titres = const [
     "Mon planning",

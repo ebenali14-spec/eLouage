@@ -35,7 +35,6 @@ class ChoixRolePage extends StatelessWidget {
                 child: OutlinedButton(
                   onPressed: () {
                     Navigator.push(context, MaterialPageRoute(
-                      // to changed when louagiste s ready
                         builder: (context) => const LouagisteShell()));
                   },
                   child: const Text('Espace louagiste'),
