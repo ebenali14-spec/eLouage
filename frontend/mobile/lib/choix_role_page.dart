@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:mobile/louagiste/louagiste_shell.dart';
 import 'theme/app_colors.dart';
 import 'passager/passager_shell.dart';
 
@@ -35,8 +36,7 @@ class ChoixRolePage extends StatelessWidget {
                   onPressed: () {
                     Navigator.push(context, MaterialPageRoute(
                       // to changed when louagiste s ready
-                        builder: (context) => const Scaffold(
-                            body: Center(child: Text('Espace louagiste')))));
+                        builder: (context) => const LouagisteShell()));
                   },
                   child: const Text('Espace louagiste'),
                 ),
