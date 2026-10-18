@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
 import 'accueil_passager_page.dart';
+import 'mes_reservations_page.dart';
 
 class PassagerShell extends StatefulWidget {
   const PassagerShell({super.key});
@@ -15,7 +16,7 @@ class _PassagerShellState extends State<PassagerShell> {
 
   final List<Widget> _pages = const [
     AccueilPassagerPage(nom: 'Passager'),
-    Center(child: Text('Mes réservations')),
+    MesReservationsPage(),
   ];
   final List<String> _titres= const [
     "Accueil",
