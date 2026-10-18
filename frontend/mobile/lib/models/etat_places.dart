@@ -2,7 +2,8 @@ class PlaceEtat {
   final int numero;
   final bool libre;
   PlaceEtat(this.numero, this.libre);
-  factory PlaceEtat.fromJson(Map<String, dynamic> j) => PlaceEtat(j['numero'], j['libre']);
+  factory PlaceEtat.fromJson(Map<String, dynamic> j) =>
+      PlaceEtat(j['numero'], j['libre']);
 }
 
 class EtatPlaces {

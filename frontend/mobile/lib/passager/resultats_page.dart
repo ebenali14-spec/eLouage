@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../models/trajet_resultat.dart';
 import '../services/trajet_service.dart';
 import '../theme/app_colors.dart';
+import 'detail_trajet_page.dart';
 
 class ResultatsPage extends StatefulWidget {
   final String depart, destination;
@@ -38,6 +39,8 @@ class _ResultatsPageState extends State<ResultatsPage> {
           Text('${t.villeDepart} → ${t.villeDestination}',
               style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
           const SizedBox(height: 8),
+          Text('Départ : ${t.stationDepart}'),
+          Text('Arrivée : ${t.stationArrivee}'),
           Text('Date : ${_formater(t.date)}'),
           Text('Louagiste : ${t.louagisteNom} (${t.matricule})'),
           Text('Prix : ${t.prix.toStringAsFixed(1)} DT'),
@@ -54,9 +57,13 @@ class _ResultatsPageState extends State<ResultatsPage> {
             child: ElevatedButton(
               onPressed: complet
                   ? null
-                  : () {
-                // prochaine étape : Navigator.push vers la page de détail (US12/US13)
-                debugPrint('Trajet choisi : ${t.trajetId}');
+                  : () async {
+                await Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => DetailTrajetPage(trajet: t)),
+                );
+                if (!mounted) return;
+                setState(() => _futur = _lancer()); // met à jour les places restantes
               },
               child: Text(complet ? 'Complet' : 'Réserver'),
             ),

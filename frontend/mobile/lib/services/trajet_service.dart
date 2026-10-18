@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../config/config.dart';
 import '../models/trajet_resultat.dart';
+import '../models/etat_places.dart';
 
 class TrajetService {
   Future<List<TrajetResultat>> rechercher(
@@ -19,5 +20,12 @@ class TrajetService {
     }
     final liste = jsonDecode(utf8.decode(reponse.bodyBytes)) as List;
     return liste.map((e) => TrajetResultat.fromJson(e)).toList();
+  }
+  Future<EtatPlaces> getEtatPlaces(int trajetId) async {
+    final reponse = await http
+        .get(Uri.parse('$baseUrl/api/lignes/trajets/$trajetId/places'))
+        .timeout(const Duration(seconds: 10));
+    if (reponse.statusCode != 200) throw Exception('Erreur ${reponse.statusCode}');
+    return EtatPlaces.fromJson(jsonDecode(utf8.decode(reponse.bodyBytes)));
   }
 }
