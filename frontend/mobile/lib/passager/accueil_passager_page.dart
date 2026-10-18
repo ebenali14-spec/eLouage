@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:mobile/services/trajet_service.dart';
 import '../theme/app_colors.dart';
+import 'recherche_page.dart';
 
 class AccueilPassagerPage extends StatelessWidget {
   final String nom;
@@ -22,7 +24,8 @@ class AccueilPassagerPage extends StatelessWidget {
               icon: const Icon(Icons.search),
               label: const Text('Rechercher un trajet'),
               onPressed: () {
-                // plus tard : Navigator.push vers la page de recherche
+                Navigator.push(context,
+                    MaterialPageRoute(builder: (context) => const RecherchePage()));
               },
             ),
           ),
