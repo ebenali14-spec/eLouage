@@ -89,4 +89,16 @@ class TrajetService {
     if (res.statusCode != 200) throw Exception(_erreur(res));
     return List<Map<String, dynamic>>.from(jsonDecode(utf8.decode(res.bodyBytes)));
   }
+
+
+  // louagiste : confirmer l'embarquement d'un passager
+  Future<void> confirmerEmbarquement(int reservationId, int louagisteId) async {
+    final res = await http
+        .put(Uri.parse(
+        '$baseUrl/api/reservations/$reservationId/embarquement?louagisteId=$louagisteId'))
+        .timeout(const Duration(seconds: 10));
+    if (res.statusCode != 200) throw Exception(_erreur(res));
+  }
+
+
 }

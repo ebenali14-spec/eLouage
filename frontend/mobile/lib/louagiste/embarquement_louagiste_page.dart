@@ -15,8 +15,9 @@ class _EmbarquementLouagistePageState extends State<EmbarquementLouagistePage> {
 
   Map<String, dynamic>? _trajet;
   List<Map<String, dynamic>> _presents = [];
-  final Set<int> _embarques = {}; // index des passagers cochés
+  final Set<int> _coches = {}; // ids des réservations cochées
   bool _chargement = true;
+  bool _envoi = false;
 
   @override
   void initState() {
@@ -29,12 +30,31 @@ class _EmbarquementLouagistePageState extends State<EmbarquementLouagistePage> {
       _trajet = await _service.trajetDuJour(_louagisteId);
       if (_trajet != null) {
         _presents = await _service.getPresents(_trajet!['trajetId'], _louagisteId);
-        _embarques.clear();
+        _coches.clear();
       }
     } catch (e) {
       _message(e.toString().replaceFirst('Exception: ', ''));
     }
     if (mounted) setState(() => _chargement = false);
+  }
+
+  Future<void> _confirmer() async {
+    setState(() => _envoi = true);
+    int ok = 0;
+    String? erreur;
+    for (final id in _coches.toList()) {
+      try {
+        await _service.confirmerEmbarquement(id, _louagisteId);
+        ok++;
+      } catch (e) {
+        erreur = e.toString().replaceFirst('Exception: ', '');
+      }
+    }
+    _message(erreur == null
+        ? 'Embarquement confirmé ($ok)'
+        : '$ok confirmé(s), erreur : $erreur');
+    await _charger();
+    if (mounted) setState(() => _envoi = false);
   }
 
   void _message(String texte) {
@@ -71,13 +91,18 @@ class _EmbarquementLouagistePageState extends State<EmbarquementLouagistePage> {
               ])
                   : ListView.builder(
                 itemCount: _presents.length,
-                itemBuilder: (context, i) => CheckboxListTile(
-                  title: Text('${_presents[i]['nomPassager'] ?? 'Passager'}'),
-                  value: _embarques.contains(i),
-                  onChanged: (coche) => setState(() {
-                    coche! ? _embarques.add(i) : _embarques.remove(i);
-                  }),
-                ),
+                itemBuilder: (context, i) {
+                  final r = _presents[i];
+                  final id = r['id'] as int;
+                  return CheckboxListTile(
+                    title: Text('${r['passagerNom'] ?? 'Passager'}'),
+                    subtitle: Text('Place ${r['numeroPlace']} · ${r['statut']}'),
+                    value: _coches.contains(id),
+                    onChanged: (coche) => setState(() {
+                      coche! ? _coches.add(id) : _coches.remove(id);
+                    }),
+                  );
+                },
               ),
             ),
           ),
@@ -85,12 +110,8 @@ class _EmbarquementLouagistePageState extends State<EmbarquementLouagistePage> {
             width: double.infinity,
             child: ElevatedButton.icon(
               icon: const Icon(Icons.check),
-              label: Text('Confirmer l\'embarquement (${_embarques.length})'),
-              onPressed: _embarques.isEmpty
-                  ? null
-                  : () {
-                // plus tard : endpoint de confirmation d'embarquement
-              },
+              label: Text('Confirmer l\'embarquement (${_coches.length})'),
+              onPressed: (_coches.isEmpty || _envoi) ? null : _confirmer,
             ),
           ),
         ],
