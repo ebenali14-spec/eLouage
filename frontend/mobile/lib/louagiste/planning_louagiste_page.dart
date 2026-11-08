@@ -11,27 +11,31 @@ class PlanningLouagistePage extends StatefulWidget {
 }
 
 class _PlanningLouagistePageState extends State<PlanningLouagistePage> {
-  final _service = PlanningService();
+  //final _service = PlanningService();
 
-  // plus tard : vient de la connexion
-  final int _louagisteId = LouagisteId;
+  // TODO: final _service = PlanningService();
+  // TODO: final int _louagisteId = LouagisteId;
 
-  Map<int, String> _lignes = {};
+  // TODO: charger depuis le service (lignes autorisées par l'admin)
+  final Map<int, String> _lignes = {1: 'Tunis → Sousse', 2: 'Tunis → Sfax'};
 
   final List<String> _nomsJours = const [
     'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'
   ];
 
-  late DateTime _lundi; // lundi de la semaine affichée
-  final Map<String, int> _choix = {};      // date -> ligneId
-  final Map<String, int> _trajetIds = {};  // date -> trajetId
-  bool _planningExiste = false;
-  bool _chargement = true;
-  int _requete = 0; // ignore les réponses en retard
+  late DateTime _lundi;
+  // date -> {'ligneId': int?, 'heureArrivee': TimeOfDay?, 'allerRetour': bool}
+  // allerRetour == false -> 1 trajet (aller seul), true -> 2 trajets
+  final Map<String, Map<String, dynamic>> _plan = {};
+  bool _chargement = false;
 
-  DateTime get _aujourdhui {
-    final n = DateTime.now();
-    return DateTime(n.year, n.month, n.day);
+  @override
+  void initState() {
+    super.initState();
+    final now = DateTime.now();
+    // accessible à tout moment : on part de la semaine en cours
+    _lundi = DateTime(now.year, now.month, now.day - (now.weekday - 1));
+    _chargerSemaine();
   }
 
   List<DateTime> get _jours => List.generate(
@@ -43,47 +47,31 @@ class _PlanningLouagistePageState extends State<PlanningLouagistePage> {
   String _affiche(DateTime d) =>
       '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';
 
-  String _texteErreur(Object e) => e.toString().replaceFirst('Exception: ', '');
+  String _heure(TimeOfDay? t) => t == null
+      ? '--:--'
+      : '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
 
-  @override
-  void initState() {
-    super.initState();
-    final now = DateTime.now();
-    // départ : lundi de la semaine prochaine
-    _lundi = DateTime(now.year, now.month, now.day + 8 - now.weekday);
-    _chargerSemaine();
-  }
+  Map<String, dynamic> _de(String date) => _plan.putIfAbsent(
+      date,
+          () => {'ligneId': null, 'heureArrivee': null, 'allerRetour': false});
+
+  bool _jourComplet(Map<String, dynamic> p) =>
+      p['ligneId'] != null && p['heureArrivee'] != null;
+
+  bool _jourIncomplet(Map<String, dynamic> p) =>
+      (p['ligneId'] != null) != (p['heureArrivee'] != null);
+
+  bool get _pret =>
+      _plan.values.any(_jourComplet) && !_plan.values.any(_jourIncomplet);
 
   Future<void> _chargerSemaine() async {
-    final id = ++_requete;
     setState(() {
       _chargement = true;
-      _choix.clear();
-      _trajetIds.clear();
-      _planningExiste = false;
+      _plan.clear();
     });
-    try {
-      if (_lignes.isEmpty) {
-        final lignes = await _service.getLignesAutorisees(_louagisteId);
-        _lignes = {
-          for (final l in lignes) l['id'] as int: l['villeDestination'] as String
-        };
-      }
-      final planning = await _service.getPlanning(_louagisteId, _fmt(_lundi));
-      if (id != _requete) return;
-      if (planning != null) _remplirDepuis(planning);
-    } catch (e) {
-      if (id == _requete) _message(_texteErreur(e));
-    }
-    if (mounted && id == _requete) setState(() => _chargement = false);
-  }
-
-  void _remplirDepuis(Map<String, dynamic> planning) {
-    _planningExiste = true;
-    for (final j in planning['jours']) {
-      _choix[j['date']] = j['ligneId'];
-      _trajetIds[j['date']] = j['trajetId'];
-    }
+    // TODO: charger lignes autorisées + planning de la semaine depuis le service
+    //       et remplir _plan (ligneId, heureArrivee, allerRetour) pour chaque date
+    if (mounted) setState(() => _chargement = false);
   }
 
   void _semaine(int delta) {
@@ -99,39 +87,32 @@ class _PlanningLouagistePageState extends State<PlanningLouagistePage> {
       lastDate: DateTime(2100),
     );
     if (date == null) return;
-    // on ramène la date choisie au lundi de sa semaine
     _lundi = DateTime(date.year, date.month, date.day - (date.weekday - 1));
     _chargerSemaine();
   }
 
-  Future<void> _valider() async {
-    try {
-      final planning =
-      await _service.remplirPlan(_louagisteId, _fmt(_lundi), _choix);
-      setState(() => _remplirDepuis(planning));
-      _message('Planning confirmé');
-    } catch (e) {
-      _message(_texteErreur(e));
-    }
+  Future<void> _choisirHeure(Map<String, dynamic> p) async {
+    final t = await showTimePicker(
+      context: context,
+      initialTime: p['heureArrivee'] ?? const TimeOfDay(hour: 8, minute: 0),
+    );
+    if (t == null) return;
+    setState(() => p['heureArrivee'] = t);
   }
 
-  Future<void> _changer(String date, int ligneId) async {
-    if (!_planningExiste) {
-      setState(() => _choix[date] = ligneId);
-      return;
-    }
-    final trajetId = _trajetIds[date];
-    if (trajetId == null) {
-      _message('Aucun trajet ce jour-là');
-      return;
-    }
-    try {
-      await _service.changerLigne(trajetId, _louagisteId, ligneId);
-      setState(() => _choix[date] = ligneId);
-      _message('Ligne modifiée');
-    } catch (e) {
-      _message(_texteErreur(e));
-    }
+  void _viderJour(Map<String, dynamic> p) {
+    setState(() {
+      p['ligneId'] = null;
+      p['heureArrivee'] = null;
+      p['allerRetour'] = false;
+    });
+  }
+
+  Future<void> _valider() async {
+    // TODO: envoyer _plan au service. Pour chaque jour :
+    //       allerRetour == false -> créer 1 trajet, true -> créer 2 trajets.
+    //       Confirmation immédiate, pas de validation admin.
+    _message('Planning confirmé');
   }
 
   void _message(String texte) {
@@ -142,7 +123,6 @@ class _PlanningLouagistePageState extends State<PlanningLouagistePage> {
   @override
   Widget build(BuildContext context) {
     final jours = _jours;
-    final semainePassee = jours.last.isBefore(_aujourdhui);
 
     return Padding(
       padding: const EdgeInsets.all(24),
@@ -161,7 +141,9 @@ class _PlanningLouagistePageState extends State<PlanningLouagistePage> {
                   child: Text(
                     'Semaine du ${_affiche(_lundi)}',
                     textAlign: TextAlign.center,
-                    style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold,
+                    style: const TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
                         color: AppColors.textPrimary),
                   ),
                 ),
@@ -180,32 +162,102 @@ class _PlanningLouagistePageState extends State<PlanningLouagistePage> {
               itemCount: jours.length,
               itemBuilder: (context, i) {
                 final date = _fmt(jours[i]);
-                final passe = jours[i].isBefore(_aujourdhui);
-                return ListTile(
-                  title: Text(_nomsJours[i]),
-                  subtitle: Text(date),
-                  trailing: DropdownButton<int>(
-                    value: _choix[date],
-                    hint: Text(passe ? '—' : 'Choisir'),
-                    items: _lignes.entries
-                        .map((e) => DropdownMenuItem(
-                        value: e.key, child: Text(e.value)))
-                        .toList(),
-                    onChanged: passe ? null : (id) => _changer(date, id!),
+                final p = _de(date);
+                final aLigne = p['ligneId'] != null;
+                return Card(
+                  margin: const EdgeInsets.only(bottom: 12),
+                  child: Padding(
+                    padding: const EdgeInsets.all(14),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment:
+                                CrossAxisAlignment.start,
+                                children: [
+                                  Text(_nomsJours[i],
+                                      style: const TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.bold)),
+                                  Text(date),
+                                ],
+                              ),
+                            ),
+                            if (aLigne || p['heureArrivee'] != null)
+                              IconButton(
+                                tooltip: 'Vider ce jour',
+                                icon: const Icon(Icons.close),
+                                onPressed: () => _viderJour(p),
+                              ),
+                          ],
+                        ),
+                        const Divider(),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: DropdownButton<int>(
+                                isExpanded: true,
+                                value: p['ligneId'],
+                                hint: const Text('Choisir une ligne'),
+                                items: _lignes.entries
+                                    .map((e) => DropdownMenuItem(
+                                    value: e.key,
+                                    child: Text(e.value)))
+                                    .toList(),
+                                onChanged: (id) =>
+                                    setState(() => p['ligneId'] = id),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            OutlinedButton.icon(
+                              icon: const Icon(Icons.schedule, size: 18),
+                              label: Text(_heure(p['heureArrivee'])),
+                              onPressed:
+                              aLigne ? () => _choisirHeure(p) : null,
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                        const Text(
+                          'Heure d\'arrivée à la station (1er trajet)',
+                          style: TextStyle(
+                              fontSize: 12, color: Colors.grey),
+                        ),
+                        const SizedBox(height: 12),
+                        SizedBox(
+                          width: double.infinity,
+                          child: SegmentedButton<bool>(
+                            segments: const [
+                              ButtonSegment(
+                                  value: false, label: Text('Aller')),
+                              ButtonSegment(
+                                  value: true,
+                                  label: Text('Aller-retour')),
+                            ],
+                            selected: {p['allerRetour'] == true},
+                            onSelectionChanged: aLigne
+                                ? (s) => setState(
+                                    () => p['allerRetour'] = s.first)
+                                : null,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 );
               },
             ),
           ),
-          if (!_chargement && !_planningExiste && semainePassee)
-            const Center(child: Text('Aucun planning cette semaine')),
-          if (!_chargement && !_planningExiste && !semainePassee)
+          if (!_chargement)
             SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
                 icon: const Icon(Icons.check),
-                label: const Text('Valider ma semaine'),
-                onPressed: _choix.isEmpty ? null : _valider,
+                label: const Text('Confirmer ma semaine'),
+                onPressed: _pret ? _valider : null,
               ),
             ),
         ],
