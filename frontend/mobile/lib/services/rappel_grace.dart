@@ -1,47 +1,92 @@
+
 class RappelGrace {
-  static const int minutesAvant = 1;
+  static const int minutesAvant = 15;
 
-  /// Boarding date and time of a reservation (null if unknown)
-  static DateTime? depart(Map<String, dynamic> r) {
-    final date = r['dateTrajet'];
-    final heure = r['heureArrivee'];
-    if (date == null || heure == null) return null;
-    final h = '$heure'.length == 5 ? '$heure:00' : '$heure';
-    return DateTime.tryParse('${date}T$h');
-  }
+  // Date and time when the louagiste arrives at the departure station.
+  static DateTime? heureArrivee(Map<String, dynamic> reservation) {
+    final date = reservation['dateTrajet']?.toString();
+    final heure = reservation['heureArrivee']?.toString();
 
-  /// 'rappel' (inside the 15 min), 'depasse' (time passed, not confirmed),
-  /// 'absent', or null (nothing to show)
-  static String? etat(Map<String, dynamic> r, DateTime now) {
-    final statut = r['statut'];
-    if (statut == 'ABSENT') return 'absent';
-    if (statut != 'CONFIRMEE') return null;
-    final d = depart(r);
-    if (d == null) return null;
-    if (now.isBefore(d.subtract(const Duration(minutes: minutesAvant)))) {
+    if (date == null || date.isEmpty ||
+        heure == null || heure.isEmpty) {
       return null;
     }
-    return now.isBefore(d) ? 'rappel' : 'depasse';
+
+    final heureNormalisee =
+    heure.length == 5 ? '$heure:00' : heure;
+
+    return DateTime.tryParse('${date}T$heureNormalisee');
   }
 
-  /// Reservations that need an alert right now
-  static List<Map<String, dynamic>> actifs(List<Map<String, dynamic>> res) {
-    final now = DateTime.now();
-    return res.where((r) => etat(r, now) != null).toList();
-  }
+  // Returns the current reminder state.
+  static String? etat(
+      Map<String, dynamic> reservation,
+      DateTime maintenant,
+      ) {
+    final statut = reservation['statut']?.toString();
 
-  /// When the next reminder window opens (null if none is coming)
-  static DateTime? prochainDeclenchement(List<Map<String, dynamic>> res) {
-    final now = DateTime.now();
-    DateTime? best;
-    for (final r in res) {
-      if (r['statut'] != 'CONFIRMEE') continue;
-      final d = depart(r);
-      if (d == null) continue;
-      final debut = d.subtract(const Duration(minutes: minutesAvant));
-      if (!debut.isAfter(now)) continue; // already open or passed
-      if (best == null || debut.isBefore(best)) best = debut;
+    if (statut == 'ABSENT') return 'absent';
+
+    if (statut != 'CONFIRMEE') return null;
+
+    final arrivee = heureArrivee(reservation);
+
+    if (arrivee == null) return null;
+
+    final debutRappel = arrivee.subtract(
+      const Duration(minutes: minutesAvant),
+    );
+
+    if (maintenant.isBefore(debutRappel)) {
+      return null;
     }
-    return best;
+
+    if (maintenant.isBefore(arrivee)) {
+      return 'rappel';
+    }
+
+    return 'depasse';
+  }
+
+  // Returns reservations currently in the reminder period.
+  static List<Map<String, dynamic>> actifs(
+      List<Map<String, dynamic>> reservations,
+      ) {
+    final maintenant = DateTime.now();
+
+    return reservations.where((reservation) {
+      return etat(reservation, maintenant) != null;
+    }).toList();
+  }
+
+  // Finds the next reminder time.
+  static DateTime? prochainDeclenchement(
+      List<Map<String, dynamic>> reservations,
+      ) {
+    final maintenant = DateTime.now();
+
+    DateTime? prochain;
+
+    for (final reservation in reservations) {
+      if (reservation['statut']?.toString() != 'CONFIRMEE') {
+        continue;
+      }
+
+      final arrivee = heureArrivee(reservation);
+
+      if (arrivee == null) continue;
+
+      final debutRappel = arrivee.subtract(
+        const Duration(minutes: minutesAvant),
+      );
+
+      if (debutRappel.isAfter(maintenant)) {
+        if (prochain == null || debutRappel.isBefore(prochain)) {
+          prochain = debutRappel;
+        }
+      }
+    }
+
+    return prochain;
   }
 }
