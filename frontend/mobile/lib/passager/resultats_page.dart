@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:mobile/passager/attente_page.dart';
 import '../models/trajet_resultat.dart';
 import '../services/trajet_service.dart';
 import '../theme/app_colors.dart';
@@ -25,6 +26,37 @@ class _ResultatsPageState extends State<ResultatsPage> {
   void initState() {
     super.initState();
     _futur = _lancer();
+  }
+
+  Widget _boutonAttente(bool peutAttendre) {
+    return SizedBox(
+      width: double.infinity,
+      child: ElevatedButton(
+        style: peutAttendre
+            ? null
+            : ElevatedButton.styleFrom(backgroundColor: Colors.grey.shade400),
+        onPressed: () async {
+          if (!peutAttendre) {
+            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+              content: Text('Il reste des places sur au moins un trajet : '
+                  'vous ne pouvez pas rejoindre la liste d\'attente.'),
+            ));
+            return;
+          }
+          final ok = await Navigator.push<bool>(
+            context,
+            MaterialPageRoute(
+              builder: (context) => AttentePage(
+                  depart: widget.depart,
+                  destination: widget.destination,
+                  date: widget.date),
+            ),
+          );
+          if (ok == true && mounted) setState(() => _futur = _lancer());
+        },
+        child: const Text('Rejoindre la liste d\'attente'),
+      ),
+    );
   }
 
   String _formater(DateTime d) =>
@@ -97,13 +129,20 @@ class _ResultatsPageState extends State<ResultatsPage> {
             );
           }
           final trajets = snapshot.data!;
-          if (trajets.isEmpty) {
-            return const Center(child: Text('Aucun trajet pour cette date.'));
-          }
-          return ListView.builder(
+          // liste d'attente possible seulement si aucun trajet n'a de place
+          // (vrai aussi quand il n'y a aucun trajet)
+          final peutAttendre = trajets.every((t) => t.placesLibres == 0);
+          return ListView(
             padding: const EdgeInsets.all(16),
-            itemCount: trajets.length,
-            itemBuilder: (context, i) => _carte(trajets[i]),
+            children: [
+              if (trajets.isEmpty)
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 24),
+                  child: Center(child: Text('Aucun trajet pour cette date.')),
+                ),
+              for (final t in trajets) _carte(t),
+              _boutonAttente(peutAttendre),
+            ],
           );
         },
       ),
