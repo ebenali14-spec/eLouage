@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:mobile/communs/routeur.dart';
+import 'package:mobile/louagiste/inscription_louagiste_page.dart';
 import 'package:mobile/louagiste/louagiste_shell.dart';
 import 'package:mobile/passager/inscription_page.dart';
 import 'package:mobile/passager/passager_shell.dart';
@@ -116,12 +117,35 @@ class _LoginPageState extends State<LoginPage> {
                 ),
               ),
               TextButton(
-                onPressed: () async {
-                  final email = await Navigator.push<String>(context,
-                      MaterialPageRoute(builder: (_) => const InscriptionPage()));
-                  if (email != null) _emailCtrl.text = email; // pré-remplit l'email
-                },
-                child: const Text('Nouveau passager ? Créer un compte'),
+    onPressed: () async {
+    final choix = await showModalBottomSheet<String>(
+    context: context,
+    builder: (ctx) => SafeArea(
+    child: Column(
+    mainAxisSize: MainAxisSize.min,
+    children: [
+    ListTile(
+    leading: const Icon(Icons.person),
+    title: const Text('Je suis passager'),
+    onTap: () => Navigator.pop(ctx, 'passager'),
+    ),
+    ListTile(
+    leading: const Icon(Icons.local_taxi),
+    title: const Text('Je suis louagiste'),
+    onTap: () => Navigator.pop(ctx, 'louagiste'),
+    ),
+    ],
+    ),
+    ),
+    );
+    if (choix == null || !mounted) return;
+    final Widget page = choix == 'passager'
+    ? const InscriptionPage() : const InscriptionLouagistePage();
+    final email = await Navigator.push<String>(
+    context, MaterialPageRoute(builder: (_) => page));
+    if (email != null) _emailCtrl.text = email;
+    },
+                child: const Text('Pas de compte? '),
               ),
             ],
           ),
