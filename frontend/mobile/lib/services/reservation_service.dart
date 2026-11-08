@@ -3,6 +3,7 @@ import 'package:http/http.dart' as http;
 import '../config//config.dart';
 import '../models/etat_places.dart';
 import '../models/reservation.dart';
+import 'session_service.dart';
 class ReservationException implements Exception {
   final int code;
   final String message;
@@ -11,6 +12,7 @@ class ReservationException implements Exception {
 
 class ReservationService {
   Future<void> reserver(int trajetId, int numeroPlace) async {
+    final passagerId = await SessionService.getId();
     final reponse = await http
         .post(
       Uri.parse('$baseUrl/api/reservations'),
@@ -38,6 +40,7 @@ class ReservationService {
   }
 
   Future<List<Reservation>> getReservations() async {
+    final passagerId = await SessionService.getId();
     final reponse = await http
         .get(Uri.parse('$baseUrl/api/reservations?passagerId=$passagerId'))
         .timeout(const Duration(seconds: 10));
@@ -57,9 +60,19 @@ class ReservationService {
     }
   }
 
-  Future<void> annuler(int id) =>
-      _put('/api/reservations/$id/annulation?passagerId=$passagerId');
+  Future<int> _idPassager() async {
+    final id = await SessionService.getId();
+    if (id == null) throw ReservationException(401, 'Session introuvable');
+    return id;
+  }
 
-  Future<void> signalerPresence(int id) =>
-      _put('/api/reservations/$id/presence?passagerId=$passagerId');
+  Future<void> annuler(int id) async {
+    final passagerId = await _idPassager();
+    await _put('/api/reservations/$id/annulation?passagerId=$passagerId');
+  }
+
+  Future<void> signalerPresence(int id) async {
+    final passagerId = await _idPassager();
+    await _put('/api/reservations/$id/presence?passagerId=$passagerId');
+  }
 }

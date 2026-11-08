@@ -5,6 +5,7 @@ class TrajetResultat {
   final String louagisteNom, matricule;
   final double prix;
   final int placesLibres;
+  final bool retour;
 
   TrajetResultat({
     required this.trajetId, required this.date,
@@ -12,7 +13,14 @@ class TrajetResultat {
     required this.villeDestination, required this.stationArrivee,
     required this.louagisteNom, required this.matricule,
     required this.prix, required this.placesLibres,
+    required this.retour,
   });
+
+  // vrai sens du trajet : si retour, on inverse le sens de la ligne
+  String get departReel => retour ? villeDestination : villeDepart;
+  String get arriveeReelle => retour ? villeDepart : villeDestination;
+  String get stationDepartReelle => retour ? stationArrivee : stationDepart;
+  String get stationArriveeReelle => retour ? stationDepart : stationArrivee;
 
   factory TrajetResultat.fromJson(Map<String, dynamic> j) => TrajetResultat(
     trajetId: j['trajetId'],
@@ -25,5 +33,6 @@ class TrajetResultat {
     matricule: j['matricule'],
     prix: (j['prix'] as num).toDouble(),
     placesLibres: j['placesLibres'],
+    retour: j['retour'] ?? false,
   );
 }

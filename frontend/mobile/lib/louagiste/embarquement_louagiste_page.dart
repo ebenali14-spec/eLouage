@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:mobile/services/session_service.dart';
 import '../theme/app_colors.dart';
 import 'package:mobile/config/config.dart';
 import 'package:mobile/services/trajet_service.dart';
@@ -11,7 +12,7 @@ class EmbarquementLouagistePage extends StatefulWidget {
 
 class _EmbarquementLouagistePageState extends State<EmbarquementLouagistePage> {
   final _service = TrajetService();
-  final int _louagisteId = LouagisteId;
+  int? _louagisteId;
 
   Map<String, dynamic>? _trajet;
   List<Map<String, dynamic>> _presents = [];
@@ -27,9 +28,16 @@ class _EmbarquementLouagistePageState extends State<EmbarquementLouagistePage> {
 
   Future<void> _charger() async {
     try {
-      _trajet = await _service.trajetDuJour(_louagisteId);
+      final id = await SessionService.getId();
+      if (id == null) {
+        _message('Session introuvable, reconnectez-vous.');
+        if (mounted) setState(() => _chargement = false);
+        return;
+      }
+      _louagisteId = id;
+      _trajet = await _service.trajetDuJour(id);
       if (_trajet != null) {
-        _presents = await _service.getPresents(_trajet!['trajetId'], _louagisteId);
+        _presents = await _service.getPresents(_trajet!['trajetId'], id);
         _coches.clear();
       }
     } catch (e) {
@@ -39,12 +47,17 @@ class _EmbarquementLouagistePageState extends State<EmbarquementLouagistePage> {
   }
 
   Future<void> _confirmer() async {
+    final louagisteId = _louagisteId;
+    if (louagisteId == null) {
+      _message('Session introuvable, reconnectez-vous.');
+      return;
+    }
     setState(() => _envoi = true);
     int ok = 0;
     String? erreur;
     for (final id in _coches.toList()) {
       try {
-        await _service.confirmerEmbarquement(id, _louagisteId);
+        await _service.confirmerEmbarquement(id, louagisteId);
         ok++;
       } catch (e) {
         erreur = e.toString().replaceFirst('Exception: ', '');

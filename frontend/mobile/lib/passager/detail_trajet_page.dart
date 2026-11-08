@@ -72,11 +72,11 @@ class _DetailTrajetPageState extends State<DetailTrajetPage> {
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text('${t.villeDepart} → ${t.villeDestination}',
+          Text('${t.departReel} → ${t.arriveeReelle}',
               style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
           const SizedBox(height: 8),
-          Text('Départ : ${t.stationDepart}'),
-          Text('Arrivée : ${t.stationArrivee}'),
+          Text('Départ : ${t.stationDepartReelle}'),
+          Text('Arrivée : ${t.stationArriveeReelle}'),
           Text('Date : ${_formater(t.date)}'),
           Text('Louagiste : ${t.louagisteNom} (${t.matricule})'),
           Text('Prix : ${t.prix.toStringAsFixed(1)} DT'),

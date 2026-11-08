@@ -21,8 +21,12 @@ class TrajetService {
       throw Exception('Erreur ${reponse.statusCode}');
     }
     final liste = jsonDecode(utf8.decode(reponse.bodyBytes)) as List;
-    return liste.map((e) => TrajetResultat.fromJson(e)).toList();
-  }
+    return liste
+        .map((e) => TrajetResultat.fromJson(e))
+        .where((t) =>
+    t.departReel.toUpperCase() == depart.toUpperCase() &&
+        t.arriveeReelle.toUpperCase() == destination.toUpperCase())
+        .toList();}
 
   Future<EtatPlaces> getEtatPlaces(int trajetId) async {
     final reponse = await http

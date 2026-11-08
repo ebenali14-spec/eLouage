@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:mobile/services/session_service.dart';
 import '../theme/app_colors.dart';
+
 import 'package:mobile/services/trajet_service.dart';
 import 'package:mobile/config/config.dart';
 class StationLouagistePage extends StatefulWidget {
@@ -11,7 +13,7 @@ class StationLouagistePage extends StatefulWidget {
 
 class _StationLouagistePageState extends State<StationLouagistePage> {
   final _service = TrajetService();
-  final int _louagisteId = LouagisteId;
+  int? _louagisteId;
 
   Map<String, dynamic>? _trajet; // trajet d'aujourd'hui
   List<Map<String, dynamic>> _file = [];
@@ -24,8 +26,15 @@ class _StationLouagistePageState extends State<StationLouagistePage> {
   }
 
   Future<void> _charger() async {
+    final id = await SessionService.getId();
+    if (id == null) {
+      _message('Session introuvable');
+      if (mounted) setState(() => _chargement = false);
+      return;
+    }
+    _louagisteId = id;
     try {
-      _trajet = await _service.trajetDuJour(_louagisteId);
+      _trajet = await _service.trajetDuJour(id);
       if (_trajet != null) {
         _file = await _service.getFile(_trajet!['ligneId']);
       }
@@ -36,9 +45,14 @@ class _StationLouagistePageState extends State<StationLouagistePage> {
   }
 
   Future<void> _declarerPresence() async {
+    final id = _louagisteId;
+    if (id == null) {
+      _message('Session introuvable, reconnectez-vous.');
+      return;
+    }
     try {
-      await _service.checkIn(_trajet!['trajetId'], _louagisteId);
-      await _charger(); // la place est calculée par le backend
+      await _service.checkIn(_trajet!['trajetId'], id);
+      await _charger();
       _message('Présence déclarée');
     } catch (e) {
       _message(e.toString().replaceFirst('Exception: ', ''));
