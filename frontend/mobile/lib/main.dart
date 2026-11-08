@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:mobile/communs/login_page.dart';
+import 'package:mobile/communs/splash_page.dart';
 import 'theme/app_colors.dart';
-import 'choix_role_page.dart';
+//import './communs/splash_page.dart';
 
 void main() => runApp(const MyApp());
 
@@ -16,7 +18,7 @@ class MyApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: AppColors.primary),
         scaffoldBackgroundColor: AppColors.background,
       ),
-      home: const ChoixRolePage(),
+      home: const SplashPage(),
     );
   }
 }
