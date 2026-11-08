@@ -14,6 +14,7 @@ class _PlanningLouagistePageState extends State<PlanningLouagistePage> {
   final _service = PlanningService();
   int? _louagisteId;
 
+  // id ligne -> "DEPART → ARRIVEE" (utilise en mode lecture pour changer de ligne)
   Map<int, String> _lignes = {};
 
   final List<String> _nomsJours = const [
@@ -25,6 +26,8 @@ class _PlanningLouagistePageState extends State<PlanningLouagistePage> {
   final Map<String, Map<String, dynamic>> _plan = {};
   // read-only mode: date -> trajets returned by the backend
   final Map<String, List<Map<String, dynamic>>> _trajets = {};
+  // US21 : date -> lignes autorisees avec compteurs
+  final Map<String, List<Map<String, dynamic>>> _etat = {};
   bool _planningExiste = false;
   bool _chargement = true;
   bool _envoi = false;
@@ -45,8 +48,9 @@ class _PlanningLouagistePageState extends State<PlanningLouagistePage> {
     return DateTime(n.year, n.month, n.day);
   }
 
-  // the backend closes a week on its own Monday (dateCloture)
-  bool get _semaineCloturee => _lundi.isBefore(_aujourdhui);
+  // le backend ferme la semaine apres son dimanche (dateCloture = lundi + 6)
+  bool get _semaineCloturee =>
+      _aujourdhui.isAfter(DateTime(_lundi.year, _lundi.month, _lundi.day + 6));
 
   List<DateTime> get _jours => List.generate(
       7, (i) => DateTime(_lundi.year, _lundi.month, _lundi.day + i));
@@ -77,6 +81,18 @@ class _PlanningLouagistePageState extends State<PlanningLouagistePage> {
           _plan.values.any(_jourComplet) &&
           !_plan.values.any(_jourIncomplet);
 
+  // ---------- regle US21 ----------
+  // si au moins une ligne est sous le minimum et au moins une autre l'a atteint,
+  // seules les lignes sous le minimum sont autorisees (cas 2)
+  bool _restreint(List<Map<String, dynamic>> etat) {
+    final sous = etat.where((e) => e['sousMinimum'] == true).length;
+    return sous > 0 && sous < etat.length;
+  }
+
+  bool _ligneChoisissable(
+      List<Map<String, dynamic>> etat, Map<String, dynamic> l) =>
+      !_restreint(etat) || l['sousMinimum'] == true;
+
   // ---------- loading ----------
   Future<void> _chargerSemaine() async {
     final id = ++_requete;
@@ -84,6 +100,7 @@ class _PlanningLouagistePageState extends State<PlanningLouagistePage> {
       _chargement = true;
       _plan.clear();
       _trajets.clear();
+      _etat.clear();
       _planningExiste = false;
     });
     try {
@@ -91,17 +108,26 @@ class _PlanningLouagistePageState extends State<PlanningLouagistePage> {
       if (_louagisteId == null) throw Exception('Session expirée, reconnectez-vous');
 
       if (_lignes.isEmpty) {
-        final l = await _service.getLignesAutorisees(_louagisteId!);
+        final l = await _service.getLignesAvecInscrits(
+            _louagisteId!, _fmt(_lundi));
         _lignes = {
-          for (final x in l)
-            x['id'] as int: x['villeDepart'] != null
-                ? '${x['villeDepart']} → ${x['villeDestination']}'
-                : '${x['villeDestination']}'
+          for (final x in l) x['id'] as int: '${x['depart']} → ${x['arrivee']}'
         };
       }
       final planning = await _service.getPlanning(_louagisteId!, _fmt(_lundi));
       if (id != _requete) return;
-      if (planning != null) _remplirDepuis(planning);
+      if (planning != null) {
+        _remplirDepuis(planning);
+      } else if (!_semaineCloturee) {
+        // US21 : compteurs de chaque jour encore modifiable
+        final jours = _jours.where((d) => !d.isBefore(_aujourdhui)).toList();
+        final res = await Future.wait(jours.map(
+                (d) => _service.getLignesAvecInscrits(_louagisteId!, _fmt(d))));
+        if (id != _requete) return;
+        for (var i = 0; i < jours.length; i++) {
+          _etat[_fmt(jours[i])] = res[i];
+        }
+      }
     } catch (e) {
       if (id == _requete) _message(_texteErreur(e));
     }
@@ -194,8 +220,10 @@ class _PlanningLouagistePageState extends State<PlanningLouagistePage> {
   Widget _carteJour(int i, DateTime jour) {
     final date = _fmt(jour);
     final p = _de(date);
+    final etat = _etat[date] ?? [];
     final aLigne = p['ligneId'] != null;
-    final bloque = _semaineCloturee;
+    // semaine cloturee, ou jour deja passe (refuse par le backend)
+    final bloque = _semaineCloturee || jour.isBefore(_aujourdhui);
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
@@ -233,9 +261,19 @@ class _PlanningLouagistePageState extends State<PlanningLouagistePage> {
                     isExpanded: true,
                     value: p['ligneId'],
                     hint: const Text('Choisir une ligne'),
-                    items: _lignes.entries
-                        .map((e) => DropdownMenuItem(
-                        value: e.key, child: Text(e.value)))
+                    items: etat
+                        .map((l) => DropdownMenuItem<int>(
+                      value: l['id'] as int,
+                      enabled: _ligneChoisissable(etat, l),
+                      child: Text(
+                        '${l['depart']} → ${l['arrivee']}  '
+                            '(${l['nbLouagistesInscrits']}/${l['minimumLouagistes']})',
+                        style: TextStyle(
+                            color: _ligneChoisissable(etat, l)
+                                ? null
+                                : Colors.grey),
+                      ),
+                    ))
                         .toList(),
                     onChanged:
                     bloque ? null : (id) => setState(() => p['ligneId'] = id),
@@ -249,6 +287,15 @@ class _PlanningLouagistePageState extends State<PlanningLouagistePage> {
                 ),
               ],
             ),
+            if (!bloque && _restreint(etat))
+              const Padding(
+                padding: EdgeInsets.only(top: 4),
+                child: Text(
+                  'Certaines lignes n\'ont pas atteint leur minimum de louagistes : '
+                      'choisissez l\'une d\'elles.',
+                  style: TextStyle(fontSize: 12, color: Colors.orange),
+                ),
+              ),
             const SizedBox(height: 4),
             const Text(
               "Heure d'arrivée à la station (1er trajet)",

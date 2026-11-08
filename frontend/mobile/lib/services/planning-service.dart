@@ -66,9 +66,24 @@ class PlanningService {
     if (res.statusCode != 200) throw Exception(_erreur(res));
   }
 
+  // lignes autorisees sans compteurs ({id, villeDestination})
   Future<List<Map<String, dynamic>>> getLignesAutorisees(int louagisteId) async {
     final res = await http
         .get(Uri.parse('$baseUrl/api/louagistes/$louagisteId/lignes'),
+        headers: await _headers())
+        .timeout(const Duration(seconds: 10));
+    if (res.statusCode != 200) throw Exception(_erreur(res));
+    return List<Map<String, dynamic>>.from(jsonDecode(utf8.decode(res.bodyBytes)));
+  }
+
+  // US21 : lignes autorisees + nb de louagistes deja inscrits pour une date
+  // [{id, depart, arrivee, minimumLouagistes, nbLouagistesInscrits, sousMinimum}]
+  Future<List<Map<String, dynamic>>> getLignesAvecInscrits(
+      int louagisteId, String date) async {
+    final res = await http
+        .get(
+        Uri.parse(
+            '$baseUrl/api/louagistes/$louagisteId/lignes/inscrits?date=$date'),
         headers: await _headers())
         .timeout(const Duration(seconds: 10));
     if (res.statusCode != 200) throw Exception(_erreur(res));
