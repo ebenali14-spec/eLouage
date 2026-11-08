@@ -101,17 +101,7 @@ class _PassagerShellState extends State<PassagerShell>
     final nouveauServeur = _dernierNonLues != null && n > _dernierNonLues!;
     final nouveauRappel = _dernierRappels != null && r > _dernierRappels!;
 
-    if (nouveauServeur || nouveauRappel) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(nouveauRappel
-              ? 'Rappel : votre trajet part dans ${RappelGrace.minutesAvant} min, '
-              'confirmez votre présence'
-              : 'Vous avez une nouvelle notification'),
-          action: SnackBarAction(label: 'Voir', onPressed: _ouvrirNotifications),
-        ),
-      );
-    }
+
     _dernierNonLues = n;
     _dernierRappels = r;
     setState(() {

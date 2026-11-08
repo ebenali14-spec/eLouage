@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:mobile/services/session_service.dart';
 import '../theme/app_colors.dart';
 import 'package:mobile/services/trajet_service.dart';
+import 'package:mobile/services/heure_tunis.dart';
 
 class EmbarquementLouagistePage extends StatefulWidget {
   const EmbarquementLouagistePage({super.key});
@@ -13,8 +14,8 @@ class EmbarquementLouagistePage extends StatefulWidget {
 }
 
 class _EmbarquementLouagistePageState extends State<EmbarquementLouagistePage> {
-  // grace ends this many minutes after heureArrivee (0 = at heureArrivee)
-  static const int _delaiGraceMin = 0;
+  // le delai de grace se termine 15 min apres heureArrivee
+  static const int _delaiGraceMin = 15;
 
   final _service = TrajetService();
   int? _louagisteId;
@@ -24,12 +25,12 @@ class _EmbarquementLouagistePageState extends State<EmbarquementLouagistePage> {
   List<Map<String, dynamic>> _presents = [];
   List<Map<String, dynamic>> _nonPresents = [];
   final Set<int> _coches = {};
-  final Set<int> _absents = {};
-  final Set<int> _vus = {};
   final Set<int> _alertes = {};               // trajets already warned about
   bool _chargement = true;
   bool _envoi = false;
-  Timer? _timer;
+  Timer? _timer;   // recharge les donnees toutes les 15 s
+  Timer? _tick;    // chrono : reconstruit l'ecran seulement quand la minute change
+  int? _minAffichee;
 
   @override
   void initState() {
@@ -37,11 +38,17 @@ class _EmbarquementLouagistePageState extends State<EmbarquementLouagistePage> {
     _charger();
     _timer = Timer.periodic(
         const Duration(seconds: 15), (_) => _charger(silencieux: true));
+    _tick = Timer.periodic(const Duration(seconds: 1), (_) {
+      final t = _trajet;
+      final m = t == null ? null : _minutesRestantes(t);
+      if (m != _minAffichee && mounted) setState(() => _minAffichee = m);
+    });
   }
 
   @override
   void dispose() {
     _timer?.cancel();
+    _tick?.cancel();
     super.dispose();
   }
 
@@ -53,16 +60,24 @@ class _EmbarquementLouagistePageState extends State<EmbarquementLouagistePage> {
     return null;
   }
 
-  DateTime? _heure(Map<String, dynamic> t) {
-    if (t['heureArrivee'] == null) return null;
-    final h = '${t['heureArrivee']}';
-    return DateTime.tryParse('${t['date']}T${h.length == 5 ? '$h:00' : h}');
-  }
+  DateTime? _heure(Map<String, dynamic> t) =>
+      HeureTunis.depuis(t['date'], t['heureArrivee']);
 
   bool _graceFinie(Map<String, dynamic> t) {
     final d = _heure(t);
     return d != null &&
-        DateTime.now().isAfter(d.add(const Duration(minutes: _delaiGraceMin)));
+        !HeureTunis.maintenant()
+            .isBefore(d.add(const Duration(minutes: _delaiGraceMin)));
+  }
+
+  // minutes restantes (arrondi au-dessus), 0 si fini, null si pas d'heure
+  int? _minutesRestantes(Map<String, dynamic> t) {
+    final d = _heure(t);
+    if (d == null) return null;
+    final fin = d.add(const Duration(minutes: _delaiGraceMin));
+    final reste = fin.difference(HeureTunis.maintenant());
+    if (reste.inSeconds <= 0) return 0;
+    return (reste.inSeconds / 60).ceil();
   }
 
   String _hhmm(Map<String, dynamic> t) =>
@@ -84,8 +99,6 @@ class _EmbarquementLouagistePageState extends State<EmbarquementLouagistePage> {
     setState(() {
       _trajetId = id;
       _coches.clear();
-      _absents.clear();
-      _vus.clear();
       _presents = [];
       _nonPresents = [];
     });
@@ -121,11 +134,6 @@ class _EmbarquementLouagistePageState extends State<EmbarquementLouagistePage> {
         _presents = presents;
         _nonPresents = non;
         _coches.removeWhere((c) => !presents.any((p) => p['id'] == c));
-        final ids = non.map((r) => r['id'] as int).toSet();
-        _absents.removeWhere((a) => !ids.contains(a));
-        for (final i in ids) {
-          if (_vus.add(i)) _absents.add(i); // pre-check each new absentee once
-        }
       });
 
       // warn once per trajet when the grace delay ends with absentees
@@ -168,16 +176,18 @@ class _EmbarquementLouagistePageState extends State<EmbarquementLouagistePage> {
     if (mounted) setState(() => _envoi = false);
   }
 
-  Future<void> _libererPlaces() async {
+  // marque UN passager absent : sa place est donnee au 1er passager en attente compatible
+  Future<void> _marquerAbsent(Map<String, dynamic> r) async {
     final louagisteId = _louagisteId;
     final tid = _trajetId;
     if (louagisteId == null || tid == null) return;
     final ok = await showDialog<bool>(
       context: context,
       builder: (c) => AlertDialog(
-        title: const Text('Libérer les places ?'),
-        content: Text('${_absents.length} passager(s) seront marqués absents '
-            'et leur place sera libérée.'),
+        title: const Text('Marquer absent ?'),
+        content: Text('${r['passagerNom'] ?? 'Ce passager'} '
+            '(place ${r['numeroPlace']}) sera marqué absent '
+            'et sa place sera libérée.'),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(c, false),
@@ -192,15 +202,16 @@ class _EmbarquementLouagistePageState extends State<EmbarquementLouagistePage> {
 
     setState(() => _envoi = true);
     try {
-      final r = await _service.marquerAbsents(tid, louagisteId, _absents.toList());
-      final liberees = (r['placesLiberees'] as List?)?.length ?? 0;
-      final remp = (r['remplacants'] as List?)?.length ?? 0;
-      _message('$liberees place(s) libérée(s), $remp remplaçant(s) confirmé(s)');
-      _vus.clear();
-      await _charger();
+      final res =
+      await _service.marquerAbsents(tid, louagisteId, [r['id'] as int]);
+      final remp = (res['remplacants'] as List?)?.length ?? 0;
+      _message(remp > 0
+          ? 'Place libérée : un passager en attente a été confirmé.'
+          : 'Place libérée : aucun passager en attente compatible.');
     } catch (e) {
       _message(e.toString().replaceFirst('Exception: ', ''));
     }
+    await _charger(silencieux: true); // on recharge la liste dans tous les cas
     if (mounted) setState(() => _envoi = false);
   }
 
@@ -235,6 +246,69 @@ class _EmbarquementLouagistePageState extends State<EmbarquementLouagistePage> {
     );
   }
 
+  // chrono du delai de grace : vert, orange, rouge (un tiers chacun), puis "Temps ecoule"
+  Widget _chrono(Map<String, dynamic> t) {
+    final d = _heure(t);
+    if (d == null) return const SizedBox.shrink();
+    final now = HeureTunis.maintenant();
+    final fin = d.add(const Duration(minutes: _delaiGraceMin));
+
+    final Color couleur;
+    final String texte;
+    double? progres;
+
+    if (now.isBefore(d)) {
+      couleur = Colors.grey;
+      texte = 'Le délai de grâce de $_delaiGraceMin min commence à \n ${_hhmm(t)}';
+    } else if (!now.isBefore(fin)) {
+      couleur = Colors.red;
+      texte = 'Temps écoulé';
+      progres = 1;
+    } else {
+      final ecoule = now.difference(d).inSeconds / 60; // en minutes
+      final tiers = _delaiGraceMin / 3;
+      couleur = ecoule < tiers
+          ? Colors.green
+          : (ecoule < 2 * tiers ? Colors.orange : Colors.red);
+      texte = 'Temps restant : ${_minutesRestantes(t)} min';
+      progres = ecoule / _delaiGraceMin;
+    }
+    // DEBUG temporaire
+    final debug = 'now=${now.toString().substring(0, 19)}  '
+        'début=${d.toString().substring(0, 19)}  '
+        'fin=${fin.toString().substring(0, 19)}';
+    print(debug);
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: couleur.withOpacity(0.08),
+        border: Border.all(color: couleur),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(children: [
+            Icon(Icons.timer_outlined, color: couleur),
+            const SizedBox(width: 8),
+             Text(texte,
+                style: TextStyle(fontWeight: FontWeight.bold, color: couleur)),
+          ]),
+          if (progres != null) ...[
+            const SizedBox(height: 8),
+            LinearProgressIndicator(
+              value: progres,
+              color: couleur,
+              backgroundColor: couleur.withOpacity(0.15),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  // apres le delai : un bouton "Marquer absent" par passager qui n'a pas confirme sa presence
   Widget _blocAbsents() {
     return Card(
       color: Colors.red.withOpacity(0.06),
@@ -252,36 +326,26 @@ class _EmbarquementLouagistePageState extends State<EmbarquementLouagistePage> {
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  '${_nonPresents.length} passager(s) absent(s) après le délai de grâce',
+                  '${_nonPresents.length} passager(s) pas encore arrivé(s)',
                   style: const TextStyle(
                       fontWeight: FontWeight.bold, color: Colors.red),
                 ),
               ),
             ]),
             const SizedBox(height: 4),
-            const Text("Décochez ceux qui viennent d'arriver."),
+            const Text('Vous pouvez attendre encore ou marquer absent.'),
             for (final r in _nonPresents)
-              CheckboxListTile(
+              ListTile(
                 dense: true,
                 contentPadding: EdgeInsets.zero,
                 title: Text('${r['passagerNom'] ?? 'Passager'}'),
                 subtitle: Text('Place ${r['numeroPlace']}'),
-                value: _absents.contains(r['id']),
-                onChanged: (c) => setState(() {
-                  final id = r['id'] as int;
-                  c! ? _absents.add(id) : _absents.remove(id);
-                }),
+                trailing: OutlinedButton(
+                  style: OutlinedButton.styleFrom(foregroundColor: Colors.red),
+                  onPressed: _envoi ? null : () => _marquerAbsent(r),
+                  child: const Text('Marquer absent'),
+                ),
               ),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.red, foregroundColor: Colors.white),
-                icon: const Icon(Icons.event_seat_outlined),
-                label: Text('Marquer absents et libérer (${_absents.length})'),
-                onPressed: (_absents.isEmpty || _envoi) ? null : _libererPlaces,
-              ),
-            ),
           ],
         ),
       ),
@@ -316,6 +380,8 @@ class _EmbarquementLouagistePageState extends State<EmbarquementLouagistePage> {
             '${t['retour'] == true ? 'Retour' : 'Aller'} · ${_hhmm(t)} · ${_route(t)}',
             style: const TextStyle(color: Colors.grey),
           ),
+          const SizedBox(height: 12),
+          _chrono(t),
           const SizedBox(height: 12),
           Expanded(
             child: RefreshIndicator(

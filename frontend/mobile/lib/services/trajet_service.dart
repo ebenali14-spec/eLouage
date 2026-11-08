@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:mobile/services/heure_tunis.dart';
 import '../config/config.dart';
 import '../models/trajet_resultat.dart';
 import '../models/etat_places.dart';
@@ -134,7 +135,7 @@ class TrajetService {
   }
   // all of today's trajets (aller and retour), sorted by hour
   Future<List<Map<String, dynamic>>> trajetsDuJour(int louagisteId) async {
-    final aujourdhui = _fmt(DateTime.now());
+    final aujourdhui = _fmt(HeureTunis.maintenant());
     final res = await http
         .get(
         Uri.parse(
