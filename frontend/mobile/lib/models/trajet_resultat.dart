@@ -6,6 +6,7 @@ class TrajetResultat {
   final double prix;
   final int placesLibres;
   final bool retour;
+  final String? heureArrivee; // "07:30:00" envoye par le backend, null possible
 
   TrajetResultat({
     required this.trajetId, required this.date,
@@ -14,13 +15,13 @@ class TrajetResultat {
     required this.louagisteNom, required this.matricule,
     required this.prix, required this.placesLibres,
     required this.retour,
+    this.heureArrivee,
   });
 
-  // vrai sens du trajet : si retour, on inverse le sens de la ligne
-  String get departReel => retour ? villeDestination : villeDepart;
-  String get arriveeReelle => retour ? villeDepart : villeDestination;
-  String get stationDepartReelle => retour ? stationArrivee : stationDepart;
-  String get stationArriveeReelle => retour ? stationDepart : stationArrivee;
+  // "07:30:00" -> "07:30" (null si le trajet n'a pas d'heure)
+  String? get heure => (heureArrivee == null || heureArrivee!.length < 5)
+      ? null
+      : heureArrivee!.substring(0, 5);
 
   factory TrajetResultat.fromJson(Map<String, dynamic> j) => TrajetResultat(
     trajetId: j['trajetId'],
@@ -34,5 +35,6 @@ class TrajetResultat {
     prix: (j['prix'] as num).toDouble(),
     placesLibres: j['placesLibres'],
     retour: j['retour'] ?? false,
+    heureArrivee: j['heureArrivee'] as String?,
   );
 }
