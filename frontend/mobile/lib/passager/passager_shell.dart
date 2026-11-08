@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
 import 'accueil_passager_page.dart';
 import 'mes_reservations_page.dart';
+import '../communs/login_page.dart';
+import 'package:mobile/services/session_service.dart';
 
 class PassagerShell extends StatefulWidget {
   const PassagerShell({super.key});
@@ -22,11 +24,28 @@ class _PassagerShellState extends State<PassagerShell> {
     "Accueil",
     "Mes réservations"
   ];
-
+  Future<void> _deconnecter() async {
+    await SessionService.vider();
+    if (!mounted) return;
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(builder: (_) => const LoginPage()),
+          (route) => false,
+    );
+  }
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(_titres[_index])),
+        appBar: AppBar(
+          title: Text(_titres[_index]),
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.logout),
+              tooltip: 'Déconnexion',
+              onPressed: _deconnecter,
+            ),
+          ],
+        ),
       body: _pages[_index],
       //gestion surbrillance
       bottomNavigationBar: BottomNavigationBar(
