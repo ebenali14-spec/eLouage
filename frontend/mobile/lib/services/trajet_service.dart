@@ -3,7 +3,7 @@ import 'package:http/http.dart' as http;
 import '../config/config.dart';
 import '../models/trajet_resultat.dart';
 import '../models/etat_places.dart';
-
+import 'session_service.dart';
 class TrajetService {
   // côté passager
 
@@ -99,6 +99,56 @@ class TrajetService {
         .timeout(const Duration(seconds: 10));
     if (res.statusCode != 200) throw Exception(_erreur(res));
   }
+  Future<Map<String, String>> _headers() async {
+    final token = await SessionService.getToken();
+    return {
+      'Content-Type': 'application/json',
+      if (token != null) 'Authorization': 'Bearer $token',
+    };
+  }
 
+  Future<List<Map<String, dynamic>>> getNonPresents(
+      int trajetId, int louagisteId) async {
+    final res = await http
+        .get(Uri.parse(
+        '$baseUrl/api/trajets/$trajetId/non-presents?louagisteId=$louagisteId'),
+        headers: await _headers())
+        .timeout(const Duration(seconds: 10));
+    if (res.statusCode != 200) throw Exception(_erreur(res));
+    return List<Map<String, dynamic>>.from(jsonDecode(utf8.decode(res.bodyBytes)));
+  }
+
+  // all or nothing: returns {placesLiberees: [...], remplacants: [...]}
+  Future<Map<String, dynamic>> marquerAbsents(
+      int trajetId, int louagisteId, List<int> reservationIds) async {
+    final res = await http
+        .post(Uri.parse('$baseUrl/api/trajets/$trajetId/absents'),
+        headers: await _headers(),
+        body: jsonEncode({
+          'louagisteId': louagisteId,
+          'reservationIds': reservationIds,
+        }))
+        .timeout(const Duration(seconds: 10));
+    if (res.statusCode != 200) throw Exception(_erreur(res));
+    return Map<String, dynamic>.from(jsonDecode(utf8.decode(res.bodyBytes)));
+  }
+  // all of today's trajets (aller and retour), sorted by hour
+  Future<List<Map<String, dynamic>>> trajetsDuJour(int louagisteId) async {
+    final aujourdhui = _fmt(DateTime.now());
+    final res = await http
+        .get(
+        Uri.parse(
+            '$baseUrl/api/plannings?louagisteId=$louagisteId&semaine=$aujourdhui'),
+        headers: await _headers())
+        .timeout(const Duration(seconds: 10));
+    if (res.statusCode != 200) return [];
+    final planning = jsonDecode(utf8.decode(res.bodyBytes));
+    final liste = <Map<String, dynamic>>[
+      for (final j in planning['jours'])
+        if (j['date'] == aujourdhui) Map<String, dynamic>.from(j)
+    ];
+    liste.sort((a, b) => '${a['heureArrivee']}'.compareTo('${b['heureArrivee']}'));
+    return liste;
+  }
 
 }
