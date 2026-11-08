@@ -82,6 +82,22 @@ class _PassagerShellState extends State<PassagerShell>
     final r = RappelGrace.actifs(res).length;
     if (!mounted) return;
 
+    // --- debug temporaire : un seul message au premier passage ---
+    if (_dernierRappels == null) {
+      final id = await SessionService.getId();
+      if (!mounted) return;
+      final premiere = res.isEmpty
+          ? ''
+          : ' | ${res.first['statut']} ${res.first['heureArrivee']} '
+          'etat=${RappelGrace.etat(res.first, DateTime.now())}';
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        duration: const Duration(seconds: 20),
+        content: Text('user=$id | now=${DateTime.now().toString().substring(11, 19)} '
+            '| res=${res.length}$premiere'),
+      ));
+    }
+    // --- fin debug ---
+
     final nouveauServeur = _dernierNonLues != null && n > _dernierNonLues!;
     final nouveauRappel = _dernierRappels != null && r > _dernierRappels!;
 

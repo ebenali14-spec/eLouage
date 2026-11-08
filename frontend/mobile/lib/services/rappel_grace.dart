@@ -1,5 +1,5 @@
 class RappelGrace {
-  static const int minutesAvant = 15;
+  static const int minutesAvant = 1;
 
   /// Boarding date and time of a reservation (null if unknown)
   static DateTime? depart(Map<String, dynamic> r) {
