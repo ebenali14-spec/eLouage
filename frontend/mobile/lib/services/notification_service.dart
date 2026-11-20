@@ -6,7 +6,7 @@ import 'package:mobile/config/config.dart';
 import 'package:mobile/services/session_service.dart';
 
 class NotificationService {
-  static const String _base = '$baseUrl/api';
+  static final String _base = '$baseUrl/api';
 
   Future<Map<String, String>> _headers() async {
     final token = await SessionService.getToken();

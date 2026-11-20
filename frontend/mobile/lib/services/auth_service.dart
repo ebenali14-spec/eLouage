@@ -40,7 +40,7 @@ class AuthService {
   }
 
 
-  /*Future<void> inscrireLouagiste({
+  Future<void> inscrireLouagiste({
     required String nom,
     required String prenom,
     required String email,
@@ -79,8 +79,8 @@ class AuthService {
     if (reponse.statusCode != 200 && reponse.statusCode != 201) {
       throw AuthException(
           reponse.statusCode, _messageInscriptionLouagiste(reponse));   }
-  }*/
-  Future<void> inscrireLouagiste({
+  }
+  /*Future<void> inscrireLouagiste({
     required String nom,
     required String prenom,
     required String email,
@@ -162,7 +162,7 @@ class AuthService {
         _messageInscriptionLouagiste(reponse),
       );
     }
-  }
+  }*/
 
   Future<void> inscrirePassager({
     required String nom,

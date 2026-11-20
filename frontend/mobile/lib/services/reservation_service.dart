@@ -75,4 +75,15 @@ class ReservationService {
     final passagerId = await _idPassager();
     await _put('/api/reservations/$id/presence?passagerId=$passagerId');
   }
+
+  // US19 : le passager répond à la place qui lui est proposée (5 min)
+  Future<void> accepterProposition(int id) async {
+    final passagerId = await _idPassager();
+    await _put('/api/reservations/$id/proposition/accepter?passagerId=$passagerId');
+  }
+
+  Future<void> refuserProposition(int id) async {
+    final passagerId = await _idPassager();
+    await _put('/api/reservations/$id/proposition/refuser?passagerId=$passagerId');
+  }
 }

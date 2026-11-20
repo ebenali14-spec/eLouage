@@ -1,7 +1,15 @@
-//const String baseUrl = 'http://10.0.2.2:8081';
+import 'package:flutter/foundation.dart';
 
-const String baseUrl = 'http://localhost:8081';
- // id d'un passager existant dans ta base
+String get baseUrl {
+  if (kIsWeb) {
+    // Chrome
+    return 'http://localhost:8081';
+  }
 
+  if (defaultTargetPlatform == TargetPlatform.android) {
+    // Android Emulator
+    return 'http://10.0.2.2:8081';
+  }
 
-// adresse 10.0.2.2 émulateur Android.+
+  return 'http://localhost:8081';
+}

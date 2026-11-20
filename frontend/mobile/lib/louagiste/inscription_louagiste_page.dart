@@ -122,7 +122,7 @@ class _InscriptionLouagistePageState extends State<InscriptionLouagistePage> {
       _erreur = null;
     });
     try {
-      /*await _auth.inscrireLouagiste(
+      await _auth.inscrireLouagiste(
         nom: _nomCtrl.text,
         prenom: _prenomCtrl.text,
         email: _emailCtrl.text,
@@ -134,8 +134,8 @@ class _InscriptionLouagistePageState extends State<InscriptionLouagistePage> {
         permisPath: _fichiers['permis']!.path!,
         carteGrisePath: _fichiers['carteGrise']!.path!,
         autorisationPath: _fichiers['autorisationTransport']!.path!,
-      );*/
-      await _auth.inscrireLouagiste(
+      );
+      /*await _auth.inscrireLouagiste(
         nom: _nomCtrl.text,
         prenom: _prenomCtrl.text,
         email: _emailCtrl.text,
@@ -155,7 +155,7 @@ class _InscriptionLouagistePageState extends State<InscriptionLouagistePage> {
 
         autorisationBytes: _fichiers['autorisationTransport']!.bytes!,
         autorisationName: _fichiers['autorisationTransport']!.name,
-      );
+      );*/
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
         duration: Duration(seconds: 5),
