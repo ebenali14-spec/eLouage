@@ -10,18 +10,30 @@ class TrajetService {
 
   Future<List<TrajetResultat>> rechercher(
       String depart, String destination, DateTime date) async {
+
     final uri = Uri.parse('$baseUrl/api/lignes/recherche').replace(
       queryParameters: {
         'depart': depart,
         'destination': destination,
-        'date': date.toIso8601String().substring(0, 10), // yyyy-MM-dd
+        'date': date.toIso8601String().substring(0, 10),
       },
     );
-    final reponse = await http.get(uri).timeout(const Duration(seconds: 10));
+
+    print('URL REQUEST: $uri');
+
+    final reponse = await http.get(uri).timeout(
+      const Duration(seconds: 10),
+    );
+
+    print('STATUS: ${reponse.statusCode}');
+    print('BODY: ${utf8.decode(reponse.bodyBytes)}');
+
     if (reponse.statusCode != 200) {
-      throw Exception('Erreur ${reponse.statusCode}');
+      throw Exception('Erreur ${reponse.statusCode}: ${reponse.body}');
     }
+
     final liste = jsonDecode(utf8.decode(reponse.bodyBytes)) as List;
+
     return liste.map((e) => TrajetResultat.fromJson(e)).toList();
   }
 

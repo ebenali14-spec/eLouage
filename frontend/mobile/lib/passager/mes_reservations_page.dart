@@ -28,7 +28,8 @@ class _MesReservationsPageState extends State<MesReservationsPage> {
       case 'CONFIRMEE': return AppColors.info;
       case 'PRESENTE': return AppColors.warning;
       case 'EMBARQUEE': return AppColors.success;
-      default: return AppColors.error; // ANNULEE
+      case 'EN_ATTENTE' : return AppColors.secondary;
+      default: return AppColors.error; // ANNULEE, ABSENT
     }
   }
 
@@ -37,6 +38,8 @@ class _MesReservationsPageState extends State<MesReservationsPage> {
       case 'CONFIRMEE': return 'Confirmée';
       case 'PRESENTE': return 'Présente';
       case 'EMBARQUEE': return 'Embarquée';
+      case 'EN_ATTENTE': return 'En attente';
+      case 'ABSENT': return 'Absent';
       default: return 'Annulée';
     }
   }
@@ -89,10 +92,16 @@ class _MesReservationsPageState extends State<MesReservationsPage> {
     final aujourdhui = DateTime(now.year, now.month, now.day);
     final confirmee = r.statut == 'CONFIRMEE';
     final peutPresence = confirmee && r.dateTrajet == aujourdhui;
-    final peutAnnuler = confirmee || r.statut == 'PRESENTE';final occupe = _enCours == r.id;
+    final peutAnnuler = confirmee || r.statut == 'PRESENTE' || r.enAttente;
+    final occupe = _enCours == r.id;
     final couleur = _couleur(r.statut);
 
-    final titre = (r.stationDepart != null && r.stationArrivee != null)
+    /*final titre = (r.stationDepart != null && r.stationArrivee != null)
+        ? '${r.stationDepart} → ${r.stationArrivee}'
+        : 'Trajet n°${r.trajetId}';*/
+    final titre = r.enAttente
+        ? "Liste d'attente${r.villeDestination != null ? ' → ${r.villeDestination}' : ''}"
+        : (r.stationDepart != null && r.stationArrivee != null)
         ? '${r.stationDepart} → ${r.stationArrivee}'
         : 'Trajet n°${r.trajetId}';
 
@@ -119,9 +128,14 @@ class _MesReservationsPageState extends State<MesReservationsPage> {
           ]),
           const SizedBox(height: 8),
           Text('Date du trajet : ${_formater(r.dateTrajet)}'),
-          Text('Place : ${r.numeroPlace}'),
-          if (r.villeDestination != null) Text('Destination : ${r.villeDestination}'),
-          if (r.prix != null) Text('Prix : ${r.prix!.toStringAsFixed(1)} DT'),
+          Text(r.enAttente ? 'Date souhaitée : ${_formater(r.dateTrajet)}'
+              : 'Date du trajet : ${_formater(r.dateTrajet)}'),
+          if (!r.enAttente)
+            Text('Place : ${r.numeroPlace}'),
+          if (r.villeDestination != null)
+            Text('Destination : ${r.villeDestination}'),
+          if (r.prix != null)
+            Text('Prix : ${r.prix!.toStringAsFixed(1)} DT'),
           Text('Réservé le : ${_formater(r.dateReservation)}'),
           if (peutPresence || peutAnnuler) ...[
             const SizedBox(height: 12),

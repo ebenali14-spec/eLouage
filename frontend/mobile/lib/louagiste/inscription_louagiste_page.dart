@@ -68,7 +68,7 @@ class _InscriptionLouagistePageState extends State<InscriptionLouagistePage> {
     );
   }
 
-  Future<void> _choisir(String cle) async {
+  /*Future<void> _choisir(String cle) async {
     final resultat = await FilePicker.platform.pickFiles(
       type: FileType.custom,
       allowedExtensions: ['pdf', 'jpg', 'jpeg', 'png'],
@@ -79,6 +79,32 @@ class _InscriptionLouagistePageState extends State<InscriptionLouagistePage> {
       setState(() => _erreur = 'Fichier trop lourd (5 Mo maximum).');
       return;
     }
+    setState(() {
+      _fichiers[cle] = fichier;
+      _erreur = null;
+    });
+  }*/
+  Future<void> _choisir(String cle) async {
+    final resultat = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['pdf', 'jpg', 'jpeg', 'png'],
+      withData: true,
+    );
+
+    if (resultat == null) return;
+
+    final fichier = resultat.files.single;
+
+    if (fichier.size > 5 * 1024 * 1024) {
+      setState(() => _erreur = 'Fichier trop lourd (5 Mo maximum).');
+      return;
+    }
+
+    if (fichier.bytes == null) {
+      setState(() => _erreur = 'Impossible de lire le fichier sélectionné.');
+      return;
+    }
+
     setState(() {
       _fichiers[cle] = fichier;
       _erreur = null;
@@ -96,7 +122,7 @@ class _InscriptionLouagistePageState extends State<InscriptionLouagistePage> {
       _erreur = null;
     });
     try {
-      await _auth.inscrireLouagiste(
+      /*await _auth.inscrireLouagiste(
         nom: _nomCtrl.text,
         prenom: _prenomCtrl.text,
         email: _emailCtrl.text,
@@ -108,6 +134,27 @@ class _InscriptionLouagistePageState extends State<InscriptionLouagistePage> {
         permisPath: _fichiers['permis']!.path!,
         carteGrisePath: _fichiers['carteGrise']!.path!,
         autorisationPath: _fichiers['autorisationTransport']!.path!,
+      );*/
+      await _auth.inscrireLouagiste(
+        nom: _nomCtrl.text,
+        prenom: _prenomCtrl.text,
+        email: _emailCtrl.text,
+        telephone: _telCtrl.text,
+        motDePasse: _mdpCtrl.text,
+        matricule: _matriculeCtrl.text,
+        modele: _modeleCtrl.text,
+
+        cinBytes: _fichiers['cin']!.bytes!,
+        cinName: _fichiers['cin']!.name,
+
+        permisBytes: _fichiers['permis']!.bytes!,
+        permisName: _fichiers['permis']!.name,
+
+        carteGriseBytes: _fichiers['carteGrise']!.bytes!,
+        carteGriseName: _fichiers['carteGrise']!.name,
+
+        autorisationBytes: _fichiers['autorisationTransport']!.bytes!,
+        autorisationName: _fichiers['autorisationTransport']!.name,
       );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
