@@ -3,8 +3,8 @@ import 'package:http/http.dart' as http;
 import '../config/config.dart';
 import 'session_service.dart';
 
-// US27): les trajets du louagiste connecté, sa présence et son retour.
-// Le backend reconnaît le louagiste grâce au token : on n'envoie pas son id.
+// US27 : les trajets du louagiste connecté, sa présence et son retour.
+// La liste utilise le token ; la présence et le retour envoient l'id dans l'adresse.
 class MesTrajetsService {
   String get _url => '$baseUrl/api/louagistes/mes-trajets';
 
@@ -39,9 +39,9 @@ class MesTrajetsService {
   }
 
   // POST sans corps, utilisé par les deux actions ci-dessous
-  Future<void> _poster(String chemin) async {
+  Future<void> _posterUrl(String url) async {
     final res = await http
-        .post(Uri.parse('$_url/$chemin'), headers: await _entete())
+        .post(Uri.parse(url), headers: await _entete())
         .timeout(const Duration(seconds: 10));
     if (res.statusCode != 200 &&
         res.statusCode != 201 &&
@@ -49,7 +49,7 @@ class MesTrajetsService {
       throw Exception(_erreur(res));
     }
   }
-  // TEMPORAIRE : anciennes routes (US15 et US27) en attendant les POST de mes-trajets
+
   // POST /api/trajets/{id}/check-in?louagisteId=...
   Future<void> declarerPresence(int trajetId) async {
     final id = await SessionService.getId();
@@ -62,15 +62,4 @@ class MesTrajetsService {
     await _posterUrl('$baseUrl/api/trajets/$trajetId/retour?louagisteId=$id');
   }
 
-  // POST sans corps sur une adresse complète
-  Future<void> _posterUrl(String url) async {
-    final res = await http
-        .post(Uri.parse(url), headers: await _entete())
-        .timeout(const Duration(seconds: 10));
-    if (res.statusCode != 200 &&
-        res.statusCode != 201 &&
-        res.statusCode != 204) {
-      throw Exception(_erreur(res));
-    }
-  }
 }
