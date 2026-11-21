@@ -94,4 +94,15 @@ class ReservationService {
     final passagerId = await _idPassager();
     await _put('/api/reservations/$id/proposition/refuser?passagerId=$passagerId');
   }
+  // id de ligne -> ville de destination
+  Future<Map<int, String>> lignes() async {
+    final r = await http.get(Uri.parse('$baseUrl/api/lignes'));
+    if (r.statusCode != 200) return {};
+    final liste = jsonDecode(utf8.decode(r.bodyBytes)) as List;
+    return {
+      for (final l in liste)
+        if (l['id'] != null && l['villeDestination'] != null)
+          (l['id'] as num).toInt(): '${l['villeDestination']}',
+    };
+  }
 }

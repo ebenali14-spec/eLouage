@@ -20,11 +20,18 @@ class _MesReservationsPageState extends State<MesReservationsPage> {
 
   Timer? _tick;     // met à jour le compte à rebours chaque seconde
   Timer? _refresh;  // recharge la liste depuis le back
+  Map<int, String> _lignes = {};
 
   @override
   void initState() {
     super.initState();
     _charger();
+
+    _service.lignes().then((m) {
+      if (mounted) setState(() => _lignes = m);
+    }).catchError((_) {});
+
+
 
     _tick = Timer.periodic(const Duration(seconds: 1), (_) {
       if (mounted && _liste.any((r) => r.proposee)) setState(() {});
@@ -40,6 +47,8 @@ class _MesReservationsPageState extends State<MesReservationsPage> {
     _refresh?.cancel();
     super.dispose();
   }
+  String? _destination(Reservation r) =>
+      r.villeDestination ?? (r.ligneId != null ? _lignes[r.ligneId] : null);
 
   Future<void> _charger({bool silencieux = false}) async {
     if (!silencieux) {
@@ -162,7 +171,7 @@ class _MesReservationsPageState extends State<MesReservationsPage> {
 
     final titre = (r.stationDepart != null && r.stationArrivee != null)
         ? '${r.stationDepart} → ${r.stationArrivee}'
-        : (r.villeDestination != null ? 'Vers ${r.villeDestination}' : 'Trajet n°${r.trajetId}');
+        : (_destination(r) != null ? 'Vers ${_destination(r)}' : 'Trajet n°${r.trajetId}');
 
     return Card(
       color: couleur.withAlpha(20),
@@ -250,7 +259,7 @@ class _MesReservationsPageState extends State<MesReservationsPage> {
     final couleur = _couleur(r.statut);
 
     final titre = r.enAttente
-        ? 'Liste d\'attente${r.villeDestination != null ? ' → ${r.villeDestination}' : ''}'
+        ? 'Liste d\'attente${_destination(r) != null ? ' → ${_destination(r)}' : ''}'
         : (r.stationDepart != null && r.stationArrivee != null)
         ? '${r.stationDepart} → ${r.stationArrivee}'
         : 'Trajet n°${r.trajetId}';
@@ -285,8 +294,8 @@ class _MesReservationsPageState extends State<MesReservationsPage> {
                 style: TextStyle(fontSize: 12, color: AppColors.textSecondary))
           else
             Text('Place : ${r.numeroPlace}'),
-          if (r.villeDestination != null && !r.enAttente)
-            Text('Destination : ${r.villeDestination}'),
+          if (_destination(r) != null && !r.enAttente)
+            Text('Destination : ${_destination(r)}'),
           if (r.prix != null) Text('Prix : ${r.prix!.toStringAsFixed(1)} DT'),
           Text('Réservé le : ${_formater(r.dateReservation)}'),
           if (peutPresence || peutAnnuler) ...[

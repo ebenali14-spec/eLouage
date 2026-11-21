@@ -11,6 +11,7 @@ class Reservation {
   final String? stationDepart, stationArrivee, villeDestination, heureArrivee;
   final double? prix;
   final DateTime? dateProposition;
+  final int? ligneId;
 
   Reservation({
     required this.id,
@@ -25,6 +26,7 @@ class Reservation {
     this.heureArrivee,
     this.prix,
     this.dateProposition,
+    this.ligneId
   });
 
   bool get enAttente => statut == 'EN_ATTENTE';
@@ -58,5 +60,6 @@ class Reservation {
     heureArrivee: j['heureArrivee'] as String?,
     prix: (j['prix'] as num?)?.toDouble(),
     dateProposition: _tunis(j['dateProposition']),
+    ligneId: (j['ligneId'] as num?)?.toInt(),
   );
 }
