@@ -5,6 +5,7 @@ import 'planning_louagiste_page.dart';
 import 'embarquement_louagiste_page.dart';
 import '../communs/login_page.dart';
 import 'package:mobile/services/session_service.dart';
+import 'profil_louagiste_page.dart';
 
 class LouagisteShell extends StatefulWidget {
   const LouagisteShell({super.key});
@@ -20,6 +21,7 @@ class _LouagisteShellState extends State<LouagisteShell> {
     "Accueil",
     "Mon planning",
     "Embarquement",
+    "Mon profil",
   ];
 
   Future<void> _deconnecter() async {
@@ -41,6 +43,7 @@ class _LouagisteShellState extends State<LouagisteShell> {
       ),
       const PlanningLouagistePage(),
       const EmbarquementLouagistePage(),
+      const ProfilLouagistePage(),
     ];
 
     return Scaffold(
@@ -56,6 +59,7 @@ class _LouagisteShellState extends State<LouagisteShell> {
       ),
       body: pages[_index],
       bottomNavigationBar: BottomNavigationBar(
+        type: BottomNavigationBarType.fixed,
         currentIndex: _index,
         selectedItemColor: AppColors.primary,
         onTap: (i) => setState(() => _index = i),
@@ -65,6 +69,8 @@ class _LouagisteShellState extends State<LouagisteShell> {
               icon: Icon(Icons.calendar_month), label: 'Planning'),
           BottomNavigationBarItem(
               icon: Icon(Icons.people_outline), label: 'Embarquement'),
+          BottomNavigationBarItem(
+              icon: Icon(Icons.person_outline), label: 'Profil'),
         ],
       ),
     );

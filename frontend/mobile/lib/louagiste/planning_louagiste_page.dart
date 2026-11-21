@@ -118,7 +118,8 @@ class _PlanningLouagistePageState extends State<PlanningLouagistePage> {
       if (id != _requete) return;
       if (planning != null) {
         _remplirDepuis(planning);
-      } else if (!_semaineCloturee) {
+      }
+      if (!_semaineCloturee) {
         // US21 : compteurs de chaque jour encore modifiable
         final jours = _jours.where((d) => !d.isBefore(_aujourdhui)).toList();
         final res = await Future.wait(jours.map(
@@ -344,6 +345,38 @@ class _PlanningLouagistePageState extends State<PlanningLouagistePage> {
       ),
     );
   }
+  //apres l'enregistrement, les lignes interdites restent visibles mais ne sont pas cliquables
+  Widget _choixLigne(Map<String, dynamic> t) {
+    final ligneId = t['ligneId'];
+    final etat = _etat['${t['date']}'] ?? [];
+
+    return DropdownButton<int>(
+      isExpanded: true,
+      isDense: true,
+      value: _lignes.containsKey(ligneId) ? ligneId as int : null,
+      hint: const Text('Changer de ligne'),
+      items: _lignes.keys.map((id) {
+        final l = etat.firstWhere((e) => e['id'] == id, orElse: () => {});
+        final manque = l['sousMinimum'] == true;
+        final compteur = l.isEmpty
+            ? ''
+            : ' (${l['nbLouagistesInscrits']}/${l['minimumLouagistes']})';
+        //autorisée = ligne actuelle, ou pas de compteurs, ou la même règle qu'à la création
+        final permis = id == ligneId || l.isEmpty || _ligneChoisissable(etat, l);
+        return DropdownMenuItem<int>(
+          value: id,
+          enabled: permis,
+          child: Text(
+            '${manque ? '⚠ ' : ''}${_lignes[id]}$compteur',
+            style: TextStyle(color: permis ? null : Colors.grey),
+          ),
+        );
+      }).toList(),
+      onChanged: (id) {
+        if (id != null && id != ligneId) _changerLigne(t, id);
+      },
+    );
+  }
 
   Widget _ligneTrajet(Map<String, dynamic> t) {
     final retour = t['retour'] == true;
@@ -381,20 +414,7 @@ class _PlanningLouagistePageState extends State<PlanningLouagistePage> {
                   child: Text(route,
                       style: const TextStyle(fontWeight: FontWeight.w500)),
                 ),
-                if (modifiable)
-                  DropdownButton<int>(
-                    isExpanded: true,
-                    isDense: true,
-                    value: _lignes.containsKey(ligneId) ? ligneId as int : null,
-                    hint: const Text('Changer de ligne'),
-                    items: _lignes.entries
-                        .map((e) => DropdownMenuItem(
-                        value: e.key, child: Text(e.value)))
-                        .toList(),
-                    onChanged: (id) {
-                      if (id != null && id != ligneId) _changerLigne(t, id);
-                    },
-                  ),
+                if (modifiable) _choixLigne(t),
               ],
             ),
           ),
