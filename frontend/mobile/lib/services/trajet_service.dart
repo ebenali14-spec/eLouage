@@ -21,7 +21,7 @@ class TrajetService {
 
     print('URL REQUEST: $uri');
 
-    final reponse = await http.get(uri).timeout(
+    final reponse = await http.get(uri,headers: await _headers()).timeout(
       const Duration(seconds: 10),
     );
 
@@ -39,7 +39,8 @@ class TrajetService {
 
   Future<EtatPlaces> getEtatPlaces(int trajetId) async {
     final reponse = await http
-        .get(Uri.parse('$baseUrl/api/lignes/trajets/$trajetId/places'))
+        .get(Uri.parse('$baseUrl/api/lignes/trajets/$trajetId/places'),
+        headers: await _headers())
         .timeout(const Duration(seconds: 10));
     if (reponse.statusCode != 200) throw Exception('Erreur ${reponse.statusCode}');
     return EtatPlaces.fromJson(jsonDecode(utf8.decode(reponse.bodyBytes)));
@@ -77,8 +78,8 @@ class TrajetService {
 
   Future<void> checkIn(int trajetId, int louagisteId) async {
     final res = await http
-        .post(Uri.parse(
-        '$baseUrl/api/trajets/$trajetId/check-in?louagisteId=$louagisteId'))
+        .post(Uri.parse('$baseUrl/api/trajets/$trajetId/check-in?louagisteId=$louagisteId'),
+        headers: await _headers())
         .timeout(const Duration(seconds: 10));
     if (res.statusCode != 200 && res.statusCode != 201) {
       throw Exception(_erreur(res));
@@ -97,7 +98,8 @@ class TrajetService {
   Future<List<Map<String, dynamic>>> getPresents(int trajetId, int louagisteId) async {
     final res = await http
         .get(Uri.parse(
-        '$baseUrl/api/trajets/$trajetId/presents?louagisteId=$louagisteId'))
+        '$baseUrl/api/trajets/$trajetId/presents?louagisteId=$louagisteId'),
+        headers: await _headers())
         .timeout(const Duration(seconds: 10));
     if (res.statusCode != 200) throw Exception(_erreur(res));
     return List<Map<String, dynamic>>.from(jsonDecode(utf8.decode(res.bodyBytes)));
@@ -108,7 +110,8 @@ class TrajetService {
   Future<void> confirmerEmbarquement(int reservationId, int louagisteId) async {
     final res = await http
         .put(Uri.parse(
-        '$baseUrl/api/reservations/$reservationId/embarquement?louagisteId=$louagisteId'))
+        '$baseUrl/api/reservations/$reservationId/embarquement?louagisteId=$louagisteId'),
+        headers: await _headers())
         .timeout(const Duration(seconds: 10));
     if (res.statusCode != 200) throw Exception(_erreur(res));
   }

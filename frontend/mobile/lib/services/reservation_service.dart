@@ -11,12 +11,20 @@ class ReservationException implements Exception {
 }
 
 class ReservationService {
+  //  en-tête avec le token pour que le serveur sache qui est connecté
+  Future<Map<String, String>> _headers({bool json = false}) async {
+    final token = await SessionService.getToken();
+    return {
+      if (json) 'Content-Type': 'application/json',
+      if (token != null) 'Authorization': 'Bearer $token',
+    };
+  }
   Future<void> reserver(int trajetId, int numeroPlace) async {
     final passagerId = await SessionService.getId();
     final reponse = await http
         .post(
       Uri.parse('$baseUrl/api/reservations'),
-      headers: {'Content-Type': 'application/json'},
+      headers: await _headers(json: true),
       body: jsonEncode({
         'trajetId': trajetId,
         'passagerId': passagerId,
@@ -42,7 +50,7 @@ class ReservationService {
   Future<List<Reservation>> getReservations() async {
     final passagerId = await SessionService.getId();
     final reponse = await http
-        .get(Uri.parse('$baseUrl/api/reservations?passagerId=$passagerId'))
+        .get(Uri.parse('$baseUrl/api/reservations?passagerId=$passagerId'),headers: await _headers())
         .timeout(const Duration(seconds: 10));
     if (reponse.statusCode != 200) {
       throw ReservationException(reponse.statusCode, _message(reponse));
@@ -53,7 +61,7 @@ class ReservationService {
 
   Future<void> _put(String chemin) async {
     final reponse = await http
-        .put(Uri.parse('$baseUrl$chemin'))
+        .put(Uri.parse('$baseUrl$chemin'), headers: await _headers())
         .timeout(const Duration(seconds: 10));
     if (reponse.statusCode != 200) {
       throw ReservationException(reponse.statusCode, _message(reponse));

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
+import 'mes_trajets_page.dart';
 
 class AccueilLouagistePage extends StatelessWidget {
   final String nom;
@@ -42,6 +43,18 @@ class AccueilLouagistePage extends StatelessWidget {
               icon: const Icon(Icons.people_outline),
               label: const Text("Gérer l'embarquement"),
               onPressed: () => onNavigate(2),
+            ),
+          ),
+          const SizedBox(height: 16), //US27
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              icon: const Icon(Icons.local_taxi),
+              label: const Text('Mes trajets'),
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const MesTrajetsPage()),
+              ),
             ),
           ),
         ],
