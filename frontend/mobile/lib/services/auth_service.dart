@@ -5,6 +5,7 @@ import 'session_service.dart';
 import 'dart:async';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
+import 'dart:typed_data';
 class AuthException implements Exception {
   final int code;
   final String message;
@@ -79,6 +80,89 @@ class AuthService {
       throw AuthException(
           reponse.statusCode, _messageInscriptionLouagiste(reponse));   }
   }
+  /*Future<void> inscrireLouagiste({
+    required String nom,
+    required String prenom,
+    required String email,
+    required String telephone,
+    required String motDePasse,
+    required String matricule,
+    required String modele,
+
+    required Uint8List cinBytes,
+    required String cinName,
+
+    required Uint8List permisBytes,
+    required String permisName,
+
+    required Uint8List carteGriseBytes,
+    required String carteGriseName,
+
+    required Uint8List autorisationBytes,
+    required String autorisationName,
+  }) async {
+    final requete = http.MultipartRequest(
+      'POST',
+      Uri.parse('$baseUrl/api/auth/inscription/louagiste'),
+    );
+
+    // Champs texte : mêmes noms que les @RequestParam du backend
+    requete.fields.addAll({
+      'nom': nom.trim(),
+      'prenom': prenom.trim(),
+      'email': email.trim(),
+      'telephone': telephone.trim(),
+      'motDePasse': motDePasse,
+      'matricule': matricule.trim(),
+      'modele': modele.trim(),
+    });
+
+    // Documents envoyés à partir de leurs bytes
+    requete.files.add(
+      http.MultipartFile.fromBytes(
+        'cin',
+        cinBytes,
+        filename: cinName,
+      ),
+    );
+
+    requete.files.add(
+      http.MultipartFile.fromBytes(
+        'permis',
+        permisBytes,
+        filename: permisName,
+      ),
+    );
+
+    requete.files.add(
+      http.MultipartFile.fromBytes(
+        'carteGrise',
+        carteGriseBytes,
+        filename: carteGriseName,
+      ),
+    );
+
+    requete.files.add(
+      http.MultipartFile.fromBytes(
+        'autorisationTransport',
+        autorisationBytes,
+        filename: autorisationName,
+      ),
+    );
+
+    final envoi = await requete.send().timeout(
+      const Duration(seconds: 30),
+    );
+
+    final reponse = await http.Response.fromStream(envoi);
+
+    if (reponse.statusCode != 200 && reponse.statusCode != 201) {
+      throw AuthException(
+        reponse.statusCode,
+        _messageInscriptionLouagiste(reponse),
+      );
+    }
+  }*/
 
   Future<void> inscrirePassager({
     required String nom,

@@ -8,7 +8,7 @@ import 'accueil_passager_page.dart';
 import 'mes_reservations_page.dart';
 import 'notifications_page.dart';
 import '../communs/login_page.dart';
-
+import 'profil_page.dart';
 import 'package:mobile/services/session_service.dart';
 import 'package:mobile/services/notification_service.dart';
 import 'package:mobile/services/rappel_grace.dart';
@@ -45,11 +45,13 @@ class _PassagerShellState extends State<PassagerShell>
   final List<Widget> _pages = const [
     AccueilPassagerPage(nom: 'Passager'),
     MesReservationsPage(),
+    ProfilPage()
   ];
 
   final List<String> _titres = [
     'Accueil',
     'Mes réservations',
+    'Mon Profil'
   ];
 
   @override
@@ -282,6 +284,10 @@ class _PassagerShellState extends State<PassagerShell>
           BottomNavigationBarItem(
             icon: Icon(Icons.bookmark_add_outlined),
             label: 'Mes réservations',
+          ),
+          BottomNavigationBarItem(
+              icon: Icon(Icons.person_outline),
+              label: 'Profil'
           ),
         ],
       ),

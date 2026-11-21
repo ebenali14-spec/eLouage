@@ -119,10 +119,22 @@ class _ResultatsPageState extends State<ResultatsPage> {
           if (snapshot.hasError) {
             return Center(
               child: Column(mainAxisSize: MainAxisSize.min, children: [
-                const Text('Une erreur est survenue.'),
+                //const Text('Une erreur est survenue.'),
+                Text(
+                  'Erreur : ${snapshot.error}',
+                  textAlign: TextAlign.center,
+                ),
                 const SizedBox(height: 12),
                 ElevatedButton(
-                  onPressed: () => setState(() => _futur = _lancer()),
+                  //onPressed: () => setState(() => _futur = _lancer()),
+                  onPressed: () {
+                    setState(() {
+                      _futur = Future.value([]);
+                    });
+
+                    _futur = _lancer();
+                    setState(() {});
+                  },
                   child: const Text('Réessayer'),
                 ),
               ]),
